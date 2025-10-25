@@ -18,6 +18,7 @@ import {
   RobotoSlab_700Bold,
 } from '@expo-google-fonts/roboto-slab';
 import * as SplashScreen from 'expo-splash-screen';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -30,7 +31,39 @@ import { colors } from './src/theme';
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
-const queryClient = new QueryClient();
+
+// QueryClient met optimale configuratie
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Data blijft "fresh" voor 5 minuten
+      staleTime: 5 * 60 * 1000,
+      
+      // Cache blijft 10 minuten in memory
+      gcTime: 10 * 60 * 1000, // Was "cacheTime" in React Query v4
+      
+      // Retry 2x bij falen
+      retry: 2,
+      
+      // Exponential backoff: 1s, 2s, 4s
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      
+      // Don't refetch on window focus (mobile app)
+      refetchOnWindowFocus: false,
+      
+      // Refetch when coming back online
+      refetchOnReconnect: true,
+      
+      // Don't refetch on mount if data is fresh
+      refetchOnMount: false,
+    },
+    mutations: {
+      // Retry mutations 1x
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 export default function App() {
   // Load fonts
@@ -62,48 +95,50 @@ export default function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Login"
-          screenOptions={{
-            headerShown: true,
-          }}
-        >
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ChangePassword"
-            component={ChangePasswordScreen}
-            options={{
-              title: 'Wachtwoord Wijzigen',
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="Login"
+            screenOptions={{
+              headerShown: true,
             }}
-          />
-          <Stack.Screen
-            name="Dashboard"
-            component={DashboardScreen}
-            options={{ title: 'Dashboard' }}
-          />
-          <Stack.Screen
-            name="GlobalDashboard"
-            component={GlobalDashboardScreen}
-            options={{ title: 'Globaal Dashboard' }}
-          />
-          <Stack.Screen
-            name="DigitalBoard"
-            component={DigitalBoardScreen}
-            options={{ title: 'Digitaal Bord' }}
-          />
-          <Stack.Screen
-            name="AdminFunds"
-            component={AdminFundsScreen}
-            options={{ title: 'Admin Fondsen' }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </QueryClientProvider>
+          >
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePasswordScreen}
+              options={{
+                title: 'Wachtwoord Wijzigen',
+              }}
+            />
+            <Stack.Screen
+              name="Dashboard"
+              component={DashboardScreen}
+              options={{ title: 'Dashboard' }}
+            />
+            <Stack.Screen
+              name="GlobalDashboard"
+              component={GlobalDashboardScreen}
+              options={{ title: 'Globaal Dashboard' }}
+            />
+            <Stack.Screen
+              name="DigitalBoard"
+              component={DigitalBoardScreen}
+              options={{ title: 'Digitaal Bord' }}
+            />
+            <Stack.Screen
+              name="AdminFunds"
+              component={AdminFundsScreen}
+              options={{ title: 'Admin Fondsen' }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

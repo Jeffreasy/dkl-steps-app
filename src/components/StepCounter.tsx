@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { View, Text, Button, StyleSheet, Alert, Platform, Linking } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch } from '../services/api';
 import NetInfo from '@react-native-community/netinfo';
 import { colors, typography, spacing, shadows } from '../theme';
+import { isAPIError, getErrorMessage } from '../types';
 
 interface Props {
   onSync: () => void;
@@ -14,7 +15,7 @@ interface Props {
 const AUTO_SYNC_THRESHOLD = 50; // Auto-sync elke 50 stappen
 const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // Auto-sync elke 5 minuten
 
-export default function StepCounter({ onSync }: Props) {
+function StepCounter({ onSync }: Props) {
   const [isAvailable, setIsAvailable] = useState(false);
   const [stepsDelta, setStepsDelta] = useState(0);
   const [offlineQueue, setOfflineQueue] = useState<number[]>([]);
@@ -24,6 +25,90 @@ export default function StepCounter({ onSync }: Props) {
   const [hasAuthError, setHasAuthError] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const autoSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Define syncSteps first (before useEffect that uses it)
+  const syncSteps = useCallback(async (delta: number) => {
+    if (delta === 0) {
+      setDebugInfo('⚠️ Geen stappen om te syncen');
+      return;
+    }
+    
+    if (isSyncing) {
+      return;
+    }
+    
+    // Don't sync if we already know there's an auth error
+    if (hasAuthError) {
+      setDebugInfo('❌ Log opnieuw in om te syncen');
+      return;
+    }
+    
+    setIsSyncing(true);
+    
+    // Check if we have a token BEFORE trying to sync
+    const token = await AsyncStorage.getItem('authToken');
+    if (!token) {
+      setDebugInfo(`❌ Geen login token - log opnieuw in`);
+      setIsSyncing(false);
+      setHasAuthError(true);
+      Alert.alert(
+        'Niet Ingelogd',
+        'Je moet inloggen om stappen te kunnen synchroniseren.',
+        [{ text: 'OK' }]
+      );
+      setStepsDelta(0);
+      setOfflineQueue([]); // Clear queue
+      return;
+    }
+    
+    setDebugInfo(`⏳ Syncing ${delta} stappen...`);
+    
+    try {
+      console.log('Syncing steps:', { delta, tokenPresent: !!token });
+      await apiFetch(`/steps`, {
+        method: 'POST',
+        body: JSON.stringify({ steps: delta }),
+      });
+      setStepsDelta(0);
+      setLastSyncTime(new Date());
+      setDebugInfo(`✅ ${delta} stappen gesynchroniseerd!`);
+      setHasAuthError(false); // Reset auth error flag on success
+      onSync();
+    } catch (error: unknown) {
+      console.error('Sync failed:', error);
+      
+      // Handle different error types
+      if (isAPIError(error)) {
+        if (error.isAuthError()) {
+          setDebugInfo(`❌ Login opnieuw - sessie verlopen`);
+          setHasAuthError(true);
+          Alert.alert(
+            'Sessie Verlopen',
+            'Je moet opnieuw inloggen om stappen te kunnen synchroniseren.',
+            [{ text: 'OK' }]
+          );
+          setStepsDelta(0);
+          setOfflineQueue([]);
+        } else {
+          // Other API errors - add to offline queue if not auth error
+          const message = getErrorMessage(error);
+          setDebugInfo(`❌ Sync mislukt: ${message}`);
+          if (!hasAuthError) {
+            setOfflineQueue(prev => [...prev, delta]);
+          }
+        }
+      } else {
+        // Network or unknown error - add to offline queue
+        const message = getErrorMessage(error);
+        setDebugInfo(`❌ Sync mislukt: ${message}`);
+        if (!hasAuthError) {
+          setOfflineQueue(prev => [...prev, delta]);
+        }
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [hasAuthError, isSyncing, onSync]);
 
   useEffect(() => {
     const initPedometer = async () => {
@@ -102,7 +187,7 @@ export default function StepCounter({ onSync }: Props) {
         clearInterval(autoSyncTimerRef.current);
       }
     };
-  }, [offlineQueue, permissionStatus, hasAuthError]);
+  }, [offlineQueue, permissionStatus, hasAuthError, syncSteps]);
 
   // Auto-sync based on step threshold
   useEffect(() => {
@@ -134,99 +219,16 @@ export default function StepCounter({ onSync }: Props) {
     };
   }, [stepsDelta, hasAuthError, isSyncing]);
 
-  const syncSteps = async (delta: number) => {
-    if (delta === 0) {
-      setDebugInfo('⚠️ Geen stappen om te syncen');
-      return;
-    }
-    
-    if (isSyncing) {
-      return;
-    }
-    
-    // Don't sync if we already know there's an auth error
-    if (hasAuthError) {
-      setDebugInfo('❌ Log opnieuw in om te syncen');
-      return;
-    }
-    
-    setIsSyncing(true);
-    
-    // Check if we have a token BEFORE trying to sync
-    const token = await AsyncStorage.getItem('authToken');
-    if (!token) {
-      setDebugInfo(`❌ Geen login token - log opnieuw in`);
-      setIsSyncing(false);
-      setHasAuthError(true);
-      Alert.alert(
-        'Niet Ingelogd',
-        'Je moet inloggen om stappen te kunnen synchroniseren.',
-        [{ text: 'OK' }]
-      );
-      setStepsDelta(0);
-      setOfflineQueue([]); // Clear queue
-      return;
-    }
-    
-    setDebugInfo(`⏳ Syncing ${delta} stappen...`);
-    
-    try {
-      console.log('Syncing steps:', { delta, tokenPresent: !!token });
-      await apiFetch(`/steps`, {
-        method: 'POST',
-        body: JSON.stringify({ steps: delta }),
-      });
-      setStepsDelta(0);
-      setLastSyncTime(new Date());
-      setDebugInfo(`✅ ${delta} stappen gesynchroniseerd!`);
-      setHasAuthError(false); // Reset auth error flag on success
-      onSync();
-    } catch (err: any) {
-      console.error('Sync failed:', err);
-      
-      // Check if it's an authentication error (401)
-      if (err.message && err.message.includes('401')) {
-        setDebugInfo(`❌ Login opnieuw - sessie verlopen`);
-        setHasAuthError(true); // Set flag to prevent retry spam
-        Alert.alert(
-          'Sessie Verlopen',
-          'Je moet opnieuw inloggen om stappen te kunnen synchroniseren.',
-          [{ text: 'OK' }]
-        );
-        setStepsDelta(0); // Reset to prevent spam
-        setOfflineQueue([]); // Clear offline queue
-      } else if (err.message && err.message.includes('403')) {
-        setDebugInfo(`❌ Geen toestemming - contacteer DKL`);
-        setHasAuthError(true);
-        Alert.alert(
-          'Geen Toestemming',
-          'Je account heeft geen toestemming om stappen te posten. Neem contact op met DKL support.',
-          [{ text: 'OK' }]
-        );
-        setStepsDelta(0);
-        setOfflineQueue([]);
-      } else {
-        // Network error or temporary issue - add to offline queue
-        setDebugInfo(`❌ Sync mislukt: ${err.message}`);
-        if (!hasAuthError) { // Only queue if not auth error
-          setOfflineQueue(prev => [...prev, delta]);
-        }
-      }
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleManualSync = () => {
+  const handleManualSync = useCallback(() => {
     console.log('Manual sync requested');
     syncSteps(stepsDelta);
-  };
+  }, [syncSteps, stepsDelta]);
 
-  const handleCorrection = (amount: number) => {
+  const handleCorrection = useCallback((amount: number) => {
     syncSteps(amount);
-  };
+  }, [syncSteps]);
 
-  const handleDiagnostics = async () => {
+  const handleDiagnostics = useCallback(async () => {
     const token = await AsyncStorage.getItem('authToken');
     const role = await AsyncStorage.getItem('userRole');
     const name = await AsyncStorage.getItem('userName');
@@ -250,9 +252,9 @@ export default function StepCounter({ onSync }: Props) {
       `Offline Queue: ${offlineQueue.length} items`,
       [{ text: 'OK' }]
     );
-  };
+  }, [isAvailable, permissionStatus, hasAuthError, lastSyncTime, offlineQueue.length]);
 
-  const openSettings = () => {
+  const openSettings = useCallback(() => {
     Alert.alert(
       'Toestemming Vereist',
       Platform.OS === 'android'
@@ -262,9 +264,9 @@ export default function StepCounter({ onSync }: Props) {
         { text: 'OK' }
       ]
     );
-  };
+  }, []);
 
-  const formatTimeSinceSync = () => {
+  const formatTimeSinceSync = useCallback(() => {
     if (!lastSyncTime) return '';
     const seconds = Math.round((Date.now() - lastSyncTime.getTime()) / 1000);
     if (seconds < 60) return `${seconds}s geleden`;
@@ -272,7 +274,7 @@ export default function StepCounter({ onSync }: Props) {
     if (minutes < 60) return `${minutes}m geleden`;
     const hours = Math.floor(minutes / 60);
     return `${hours}u geleden`;
-  };
+  }, [lastSyncTime]);
 
   const offlineTotal = offlineQueue.reduce((a, b) => a + b, 0);
 
@@ -377,6 +379,9 @@ export default function StepCounter({ onSync }: Props) {
     </View>
   );
 }
+
+// Export memoized version
+export default memo(StepCounter);
 
 const styles = StyleSheet.create({
   container: {

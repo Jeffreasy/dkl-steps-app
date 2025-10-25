@@ -16,11 +16,12 @@ import { apiFetch } from '../services/api';
 import StepCounter from '../components/StepCounter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { colors, typography, spacing, shadows, components } from '../theme';
+import type { NavigationProp, DashboardResponse } from '../types';
 
-export default function DashboardScreen() {
-  const navigation = useNavigation<any>();
+function DashboardScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('');
@@ -49,22 +50,35 @@ export default function DashboardScreen() {
   const isAdminOrStaff = normalizedRole === 'admin' || normalizedRole === 'staff';
   
   // Only fetch participant dashboard for actual participants (deelnemer table)
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<DashboardResponse>({
     queryKey: ['personalDashboard'],
     queryFn: async () => {
-      return apiFetch(`/participant/dashboard`);
+      return apiFetch<DashboardResponse>(`/participant/dashboard`);
     },
     enabled: !isAdminOrStaff, // Only fetch if NOT admin/staff
     retry: false, // Don't retry - admin/staff don't have participant data
   });
 
-  const handleRefresh = async () => {
+  // Memoize calculations BEFORE any conditional returns (Rules of Hooks)
+  const progressPercentage = useMemo(() =>
+    Math.min((data?.steps || 0) / 10000 * 100, 100),
+    [data?.steps]
+  );
+  
+  const progressColor = useMemo(() =>
+    progressPercentage >= 75 ? '#4CAF50' :
+    progressPercentage >= 50 ? '#FF9800' :
+    progressPercentage >= 25 ? '#FFC107' : '#9E9E9E',
+    [progressPercentage]
+  );
+
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ['personalDashboard'] });
     setIsRefreshing(false);
-  };
+  }, [queryClient]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     Alert.alert(
       'Uitloggen',
       'Weet je zeker dat je wilt uitloggen?',
@@ -80,7 +94,7 @@ export default function DashboardScreen() {
         }
       ]
     );
-  };
+  }, [navigation]);
 
   if (isLoading && !data) {
     return (
@@ -249,12 +263,6 @@ export default function DashboardScreen() {
       </View>
     );
   }
-
-  // Calculate progress percentage
-  const progressPercentage = Math.min((data?.steps || 0) / 10000 * 100, 100);
-  const progressColor = progressPercentage >= 75 ? '#4CAF50' : 
-                        progressPercentage >= 50 ? '#FF9800' : 
-                        progressPercentage >= 25 ? '#FFC107' : '#9E9E9E';
 
   // Participant Dashboard (normal flow with steps tracking)
   return (
@@ -447,6 +455,9 @@ export default function DashboardScreen() {
     </ScrollView>
   );
 }
+
+// Export memoized version
+export default memo(DashboardScreen);
 
 const styles = StyleSheet.create({
   container: {

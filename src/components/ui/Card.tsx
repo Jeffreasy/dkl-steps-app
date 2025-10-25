@@ -3,6 +3,7 @@
  * Herbruikbare card container met verschillende variants
  */
 
+import { memo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { components } from '../../theme';
 
@@ -12,10 +13,13 @@ interface Props {
   style?: ViewStyle;
 }
 
-export default function Card({ children, variant = 'base', style }: Props) {
+function Card({ children, variant = 'base', style }: Props) {
   return (
     <View style={[components.card[variant], style]}>
       {children}
     </View>
   );
 }
+
+// Export memoized version
+export default memo(Card);

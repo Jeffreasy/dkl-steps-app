@@ -3,6 +3,7 @@
  * Herbruikbare text input met error states
  */
 
+import { memo } from 'react';
 import { TextInput, View, Text, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
 import { components, typography, colors, spacing } from '../../theme';
 
@@ -12,7 +13,7 @@ interface Props extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export default function CustomInput({ 
+function CustomInput({
   label, 
   error, 
   containerStyle,
@@ -40,6 +41,9 @@ export default function CustomInput({
     </View>
   );
 }
+
+// Export memoized version
+export default memo(CustomInput);
 
 const styles = StyleSheet.create({
   label: {

@@ -1,20 +1,21 @@
-import { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, Alert, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState, useCallback, memo } from 'react';
+import { View, TextInput, Button, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import { apiFetch } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
-import { colors, typography, spacing, shadows, components } from '../theme';
+import { colors, typography, spacing, components } from '../theme';
+import type { NavigationProp, ChangePasswordRequest } from '../types';
+import { getErrorMessage } from '../types';
+import { ScreenHeader } from '../components/ui';
 
-export default function ChangePasswordScreen() {
+function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp>();
 
-  const handleChangePassword = async () => {
+  const handleChangePassword = useCallback(async () => {
     setError('');
 
     // Validatie
@@ -41,12 +42,14 @@ export default function ChangePasswordScreen() {
     setIsLoading(true);
 
     try {
+      const requestBody: ChangePasswordRequest = {
+        huidig_wachtwoord: currentPassword,
+        nieuw_wachtwoord: newPassword,
+      };
+      
       await apiFetch('/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({
-          huidig_wachtwoord: currentPassword,
-          nieuw_wachtwoord: newPassword,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       Alert.alert(
@@ -59,38 +62,22 @@ export default function ChangePasswordScreen() {
           },
         ]
       );
-    } catch (err: any) {
-      setError(err.message || 'Fout bij wijzigen wachtwoord');
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      setError(message || 'Fout bij wijzigen wachtwoord');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPassword, newPassword, confirmPassword, navigation]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/dkl-logo.webp')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-        </View>
-        <LinearGradient
-          colors={[colors.secondary, colors.secondaryDark]}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerIcon}>🔐</Text>
-            <Text style={styles.title}>Wachtwoord Wijzigen</Text>
-          </View>
-          <Text style={styles.subtitle}>
-            Wijzig hier je wachtwoord wanneer je dat wilt
-          </Text>
-        </LinearGradient>
-      </View>
+      <ScreenHeader
+        title="Wachtwoord Wijzigen"
+        subtitle="Wijzig hier je wachtwoord wanneer je dat wilt"
+        gradientColors={[colors.secondary, colors.secondaryDark]}
+        icon="🔐"
+      />
 
       <View style={styles.form}>
         <Text style={styles.label}>Huidig Wachtwoord</Text>
@@ -148,6 +135,9 @@ export default function ChangePasswordScreen() {
   );
 }
 
+// Export memoized version
+export default memo(ChangePasswordScreen);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -156,48 +146,10 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
   },
-  logoContainer: {
-    backgroundColor: colors.background.paper,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  headerLogo: {
-    width: 240,
-    height: 75,
-  },
-  header: {
-    padding: spacing.xl,
-    alignItems: 'center',
-    borderBottomLeftRadius: spacing.radius.xl,
-    borderBottomRightRadius: spacing.radius.xl,
-    marginBottom: spacing.xl,
-  },
-  headerTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  headerIcon: {
-    fontSize: 28,
-  },
-  title: {
-    ...typography.styles.h2,
-    fontFamily: typography.fonts.heading,
-    color: colors.text.inverse,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.body,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 22,
-    textAlign: 'center',
-  },
   form: {
     ...components.card.elevated,
     margin: spacing.lg,
+    marginTop: spacing.xl,
     borderTopWidth: 3,
     borderTopColor: colors.secondary,
   },

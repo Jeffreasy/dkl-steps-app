@@ -1,20 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, ScrollView, Alert, TouchableOpacity, Image } from 'react-native';
-import { useState, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { apiFetch } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
+import type { NavigationProp, RouteFund } from '../types';
+import { getErrorMessage } from '../types';
+import { ScreenHeader, LoadingScreen } from '../components/ui';
 
-interface RouteFund {
-  id: string;
-  route: string;
-  amount: number;
-}
-
-export default function AdminFundsScreen() {
-  const navigation = useNavigation<any>();
+function AdminFundsScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const [hasAccess, setHasAccess] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [route, setRoute] = useState('');
@@ -42,11 +38,11 @@ export default function AdminFundsScreen() {
     checkAccess();
   }, [navigation]);
 
-  const { data: fundsList, isLoading, error: fundsError } = useQuery({
+  const { data: fundsList, isLoading, error: fundsError } = useQuery<RouteFund[]>({
     queryKey: ['adminRouteFunds'],
     queryFn: async () => {
       console.log('Fetching admin route funds...');
-      const result = await apiFetch('/steps/admin/route-funds');
+      const result = await apiFetch<RouteFund[]>('/steps/admin/route-funds');
       console.log('Route funds response:', result);
       return result;
     },
@@ -67,8 +63,9 @@ export default function AdminFundsScreen() {
       setAmount('');
       Alert.alert('Succes', 'Route toegevoegd');
     },
-    onError: (error: any) => {
-      Alert.alert('Fout', error.message);
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error);
+      Alert.alert('Fout', message);
     },
   });
 
@@ -83,8 +80,9 @@ export default function AdminFundsScreen() {
       queryClient.invalidateQueries({ queryKey: ['fundsDistribution'] });
       Alert.alert('Succes', 'Route bijgewerkt');
     },
-    onError: (error: any) => {
-      Alert.alert('Fout', error.message);
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error);
+      Alert.alert('Fout', message);
     },
   });
 
@@ -98,12 +96,13 @@ export default function AdminFundsScreen() {
       queryClient.invalidateQueries({ queryKey: ['fundsDistribution'] });
       Alert.alert('Succes', 'Route verwijderd');
     },
-    onError: (error: any) => {
-      Alert.alert('Fout', error.message);
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error);
+      Alert.alert('Fout', message);
     },
   });
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     const parsedAmount = parseInt(amount);
     if (!route.trim()) {
       Alert.alert('Validatie', 'Voer een route naam in');
@@ -114,18 +113,18 @@ export default function AdminFundsScreen() {
       return;
     }
     createMut.mutate({ route: route.trim(), amount: parsedAmount });
-  };
+  }, [route, amount, createMut]);
 
-  const handleUpdate = (item: RouteFund, increment: number) => {
+  const handleUpdate = useCallback((item: RouteFund, increment: number) => {
     const newAmount = item.amount + increment;
     if (newAmount < 0) {
       Alert.alert('Validatie', 'Bedrag kan niet negatief zijn');
       return;
     }
     updateMut.mutate({ r: item.route, body: { amount: newAmount } });
-  };
+  }, [updateMut]);
 
-  const handleDelete = (item: RouteFund) => {
+  const handleDelete = useCallback((item: RouteFund) => {
     Alert.alert(
       'Bevestigen',
       `Weet je zeker dat je "${item.route}" wilt verwijderen?`,
@@ -138,15 +137,10 @@ export default function AdminFundsScreen() {
         },
       ]
     );
-  };
+  }, [deleteMut]);
 
   if (isChecking) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FF9800" />
-        <Text style={styles.loading}>Toegang controleren...</Text>
-      </View>
-    );
+    return <LoadingScreen message="Toegang controleren..." color={colors.status.warning} />;
   }
 
   if (!hasAccess) {
@@ -159,22 +153,19 @@ export default function AdminFundsScreen() {
   }
 
   if (isLoading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FF9800" />
-        <Text style={styles.loading}>Routes laden...</Text>
-      </View>
-    );
+    return <LoadingScreen message="Routes laden..." color={colors.status.warning} />;
   }
 
   // Show error state
   if (fundsError) {
     return (
       <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Admin: Route Funds Beheer</Text>
-          <Text style={styles.subtitle}>CRUD operaties voor route fondsen</Text>
-        </View>
+        <ScreenHeader
+          title="Route Funds Beheer"
+          subtitle="CRUD operaties voor route fondsen"
+          gradientColors={[colors.status.warning, '#e67f1c']}
+          icon="⚙️"
+        />
         
         <View style={styles.errorCard}>
           <Text style={styles.error}>⚠️ Fout bij laden routes</Text>
@@ -197,27 +188,12 @@ export default function AdminFundsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <View>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/dkl-logo.webp')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-        </View>
-        <LinearGradient
-          colors={[colors.status.warning, '#e67f1c']}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerIcon}>⚙️</Text>
-            <Text style={styles.title}>Route Funds Beheer</Text>
-          </View>
-          <Text style={styles.subtitle}>CRUD operaties voor route fondsen</Text>
-        </LinearGradient>
-      </View>
+      <ScreenHeader
+        title="Route Funds Beheer"
+        subtitle="CRUD operaties voor route fondsen"
+        gradientColors={[colors.status.warning, '#e67f1c']}
+        icon="⚙️"
+      />
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -300,6 +276,9 @@ export default function AdminFundsScreen() {
   );
 }
 
+// Export memoized version
+export default memo(AdminFundsScreen);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -311,44 +290,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
   },
-  logoContainer: {
-    backgroundColor: colors.background.paper,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  headerLogo: {
-    width: 240,
-    height: 75,
-  },
-  header: {
-    padding: spacing.xl,
-    alignItems: 'center',
-    borderBottomLeftRadius: spacing.radius.xl,
-    borderBottomRightRadius: spacing.radius.xl,
-  },
-  headerTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  headerIcon: {
-    fontSize: 32,
-  },
-  title: {
-    ...typography.styles.h3,
-    fontFamily: typography.fonts.heading,
-    color: colors.text.inverse,
-  },
-  subtitle: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.body,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: spacing.xs,
-  },
   section: {
     ...components.card.elevated,
     margin: spacing.lg,
+    marginTop: spacing.xl,
     borderTopWidth: 3,
     borderTopColor: colors.status.warning,
   },

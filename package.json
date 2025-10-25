@@ -1,6 +1,6 @@
 {
   "name": "dkl-steps-app",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.1",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

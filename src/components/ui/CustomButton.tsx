@@ -3,6 +3,7 @@
  * Herbruikbare button met verschillende variants
  */
 
+import { memo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { colors, components, typography } from '../../theme';
 
@@ -16,7 +17,7 @@ interface Props {
   textStyle?: TextStyle;
 }
 
-export default function CustomButton({ 
+function CustomButton({
   title, 
   onPress, 
   variant = 'primary',
@@ -54,6 +55,9 @@ export default function CustomButton({
     </TouchableOpacity>
   );
 }
+
+// Export memoized version
+export default memo(CustomButton);
 
 const styles = StyleSheet.create({
   // Styles kunnen hier als override

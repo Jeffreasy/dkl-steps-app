@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 import {
   View,
   TextInput,
@@ -9,31 +9,38 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  Alert,
   Image,
-  Linking
+  Linking,
+  Modal,
+  Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
+import type { NavigationProp, LoginResponse } from '../types';
+import { isAPIError, getErrorMessage } from '../types';
 
-export default function LoginScreen() {
+function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const navigation = useNavigation<any>();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [userName, setUserName] = useState('');
+  const navigation = useNavigation<NavigationProp>();
   const passwordInputRef = useRef<TextInput>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  const validateEmail = (email: string): boolean => {
+  const validateEmail = useCallback((email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email.trim());
-  };
+  }, []);
 
-  const handleLogin = async () => {
+  const handleLogin = useCallback(async () => {
     // Clear previous errors
     setError('');
     Keyboard.dismiss();
@@ -67,7 +74,7 @@ export default function LoginScreen() {
       
       console.log('Login attempt:', { email: normalizedEmail });
       
-      const data = await apiFetch('/auth/login', {
+      const data = await apiFetch<LoginResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ 
           email: normalizedEmail, 
@@ -90,34 +97,52 @@ export default function LoginScreen() {
         ['userName', data.user.naam],
       ]);
       
-      // Show success feedback
-      Alert.alert(
-        '✅ Succesvol Ingelogd',
-        `Welkom, ${data.user.naam}!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.replace('Dashboard')
-          }
-        ]
-      );
+      // Show success feedback with custom modal
+      setUserName(data.user.naam);
+      setShowSuccessModal(true);
       
-    } catch (err: any) {
-      console.error('Login failed:', err);
+      // Animate modal entrance
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
       
-      // User-friendly error messages
-      let errorMessage = err.message || 'Er ging iets mis';
+      // Auto navigate after 2.5 seconds
+      setTimeout(() => {
+        navigation.replace('Dashboard');
+      }, 2500);
       
-      if (errorMessage.includes('401')) {
-        errorMessage = 'Verkeerd email adres of wachtwoord';
-      } else if (errorMessage.includes('403')) {
-        errorMessage = 'Je account is niet actief. Neem contact op met DKL.';
-      } else if (errorMessage.includes('404')) {
-        errorMessage = 'Geen account gevonden met dit email adres';
-      } else if (errorMessage.includes('500')) {
-        errorMessage = 'Server probleem. Probeer het later opnieuw.';
-      } else if (errorMessage.includes('Network')) {
+    } catch (error: unknown) {
+      console.error('Login failed:', error);
+      
+      // User-friendly error messages using type-safe error handling
+      let errorMessage = 'Er ging iets mis';
+      
+      if (isAPIError(error)) {
+        if (error.statusCode === 401) {
+          errorMessage = 'Verkeerd email adres of wachtwoord';
+        } else if (error.statusCode === 403) {
+          errorMessage = 'Je account is niet actief. Neem contact op met DKL.';
+        } else if (error.statusCode === 404) {
+          errorMessage = 'Geen account gevonden met dit email adres';
+        } else if (error.isServerError()) {
+          errorMessage = 'Server probleem. Probeer het later opnieuw.';
+        } else {
+          errorMessage = getErrorMessage(error);
+        }
+      } else if (error instanceof Error && error.message.includes('Network')) {
         errorMessage = 'Geen internetverbinding. Check je wifi/data.';
+      } else {
+        errorMessage = getErrorMessage(error);
       }
       
       setError(errorMessage);
@@ -129,7 +154,7 @@ export default function LoginScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, password, navigation, fadeAnim, scaleAnim, validateEmail]);
 
   return (
     <LinearGradient
@@ -269,9 +294,61 @@ export default function LoginScreen() {
         <Text style={styles.footer}>© 2025 De Koninklijke Loop</Text>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.successModal,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }]
+              }
+            ]}
+          >
+            {/* Logo */}
+            <Image
+              source={require('../../assets/dkl-logo.webp')}
+              style={styles.successLogo}
+              resizeMode="contain"
+            />
+            
+            {/* Success Icon */}
+            <View style={styles.successIconContainer}>
+              <Text style={styles.successIcon}>✓</Text>
+            </View>
+            
+            {/* Success Text */}
+            <Text style={styles.successTitle}>Succesvol Ingelogd!</Text>
+            <Text style={styles.successMessage}>
+              Welkom, <Text style={styles.successNameHighlight}>{userName}</Text>!
+            </Text>
+            
+            {/* Loading indicator */}
+            <View style={styles.successLoadingContainer}>
+              <ActivityIndicator
+                size="small"
+                color={colors.primary}
+              />
+              <Text style={styles.successLoadingText}>
+                Dashboard wordt geladen...
+              </Text>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
+
+// Export memoized version
+export default memo(LoginScreen);
 
 const styles = StyleSheet.create({
   gradientContainer: {
@@ -432,5 +509,73 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.text.disabled,
     marginTop: spacing.xl,
+  },
+  // Success Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  successModal: {
+    backgroundColor: colors.background.paper,
+    borderRadius: spacing.radius.xl,
+    padding: spacing.xxxl,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
+    ...shadows.xxl,
+  },
+  successLogo: {
+    width: 200,
+    height: 70,
+    marginBottom: spacing.lg,
+  },
+  successIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: spacing.radius.full,
+    backgroundColor: colors.status.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.md,
+  },
+  successIcon: {
+    fontSize: 48,
+    color: colors.text.inverse,
+    fontWeight: '700' as const,
+  },
+  successTitle: {
+    ...typography.styles.h2,
+    fontFamily: typography.fonts.headingBold,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  successMessage: {
+    ...typography.styles.body,
+    fontFamily: typography.fonts.body,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  successNameHighlight: {
+    fontFamily: typography.fonts.bodyBold,
+    color: colors.primary,
+  },
+  successLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.light,
+  },
+  successLoadingText: {
+    ...typography.styles.caption,
+    fontFamily: typography.fonts.body,
+    color: colors.text.secondary,
   },
 });

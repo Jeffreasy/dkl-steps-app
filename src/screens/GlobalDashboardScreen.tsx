@@ -8,19 +8,18 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Alert,
-  Image
+  Alert
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo, useMemo } from 'react';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
 import { colors, typography, spacing, shadows, components } from '../theme';
+import type { NavigationProp, TotalStepsResponse, FundsDistributionResponse } from '../types';
+import { ScreenHeader, LoadingScreen } from '../components/ui';
 
-export default function GlobalDashboardScreen() {
-  const navigation = useNavigation<any>();
+function GlobalDashboardScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
   const [hasAccess, setHasAccess] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -69,44 +68,39 @@ export default function GlobalDashboardScreen() {
     }, [hasAccess, queryClient])
   );
 
-  const { 
-    data: totals, 
-    isLoading: loadingTotals, 
+  const {
+    data: totals,
+    isLoading: loadingTotals,
     error: errorTotals,
-    refetch: refetchTotals 
-  } = useQuery({
+    refetch: refetchTotals
+  } = useQuery<TotalStepsResponse>({
     queryKey: ['totalSteps'],
-    queryFn: () => apiFetch('/total-steps?year=2025'),
+    queryFn: () => apiFetch<TotalStepsResponse>('/total-steps?year=2025'),
     enabled: hasAccess,
     retry: 2,
     retryDelay: 1000,
   });
 
-  const { 
-    data: funds, 
-    isLoading: loadingFunds, 
+  const {
+    data: funds,
+    isLoading: loadingFunds,
     error: errorFunds,
-    refetch: refetchFunds 
-  } = useQuery({
+    refetch: refetchFunds
+  } = useQuery<FundsDistributionResponse>({
     queryKey: ['fundsDistribution'],
-    queryFn: () => apiFetch('/funds-distribution'),
+    queryFn: () => apiFetch<FundsDistributionResponse>('/funds-distribution'),
     enabled: hasAccess,
     retry: 2,
     retryDelay: 1000,
   });
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     refetchTotals();
     refetchFunds();
-  };
+  }, [refetchTotals, refetchFunds]);
 
   if (isChecking) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loading}>Toegang controleren...</Text>
-      </View>
-    );
+    return <LoadingScreen message="Toegang controleren..." color={colors.secondary} />;
   }
 
   if (!hasAccess) {
@@ -122,12 +116,7 @@ export default function GlobalDashboardScreen() {
   const hasError = errorTotals || errorFunds;
 
   if (isLoading && !totals && !funds) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loading}>Dashboard laden...</Text>
-      </View>
-    );
+    return <LoadingScreen message="Dashboard laden..." color={colors.secondary} />;
   }
 
   // Show error state with retry
@@ -149,19 +138,26 @@ export default function GlobalDashboardScreen() {
     );
   }
 
-  const routesData = funds?.routes
-    ? Object.entries(funds.routes).map(([route, amount]) => ({
-        route,
-        amount: amount as number
-      }))
-    : [];
+  // Memoize calculations
+  const routesData = useMemo(() =>
+    funds?.routes
+      ? Object.entries(funds.routes).map(([route, amount]) => ({
+          route,
+          amount: amount as number
+        }))
+      : [],
+    [funds?.routes]
+  );
 
-  // Sort routes by distance (extract number from route name)
-  const sortedRoutes = routesData.sort((a, b) => {
-    const aNum = parseInt(a.route.match(/\d+/)?.[0] || '0');
-    const bNum = parseInt(b.route.match(/\d+/)?.[0] || '0');
-    return aNum - bNum;
-  });
+  // Memoize sorted routes
+  const sortedRoutes = useMemo(() =>
+    routesData.sort((a, b) => {
+      const aNum = parseInt(a.route.match(/\d+/)?.[0] || '0');
+      const bNum = parseInt(b.route.match(/\d+/)?.[0] || '0');
+      return aNum - bNum;
+    }),
+    [routesData]
+  );
 
   const totalSteps = totals?.total_steps ?? 0;
   const totalFunds = funds?.totalX ?? 0;
@@ -178,27 +174,12 @@ export default function GlobalDashboardScreen() {
         />
       }
     >
-      {/* Header with user info - Gradient zoals website */}
-      <View>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/dkl-logo.webp')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-        </View>
-        <LinearGradient
-          colors={[colors.secondary, colors.secondaryDark]}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={styles.title}>Globaal Dashboard</Text>
-          <Text style={styles.subtitle}>
-            {userName} • {userRole}
-          </Text>
-        </LinearGradient>
-      </View>
+      {/* Header with user info */}
+      <ScreenHeader
+        title="Globaal Dashboard"
+        subtitle={`${userName} • ${userRole}`}
+        gradientColors={[colors.secondary, colors.secondaryDark]}
+      />
 
       {/* Summary Statistics */}
       <View style={styles.summaryCard}>
@@ -314,6 +295,9 @@ export default function GlobalDashboardScreen() {
   );
 }
 
+// Export memoized version
+export default memo(GlobalDashboardScreen);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -324,33 +308,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
-  },
-  logoContainer: {
-    backgroundColor: colors.background.paper,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  headerLogo: {
-    width: 240,
-    height: 75,
-  },
-  header: {
-    padding: spacing.xl,
-    alignItems: 'center',
-    borderBottomLeftRadius: spacing.radius.xl,
-    borderBottomRightRadius: spacing.radius.xl,
-  },
-  title: {
-    ...typography.styles.h2,
-    fontFamily: typography.fonts.heading,
-    color: colors.text.inverse,
-  },
-  subtitle: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.body,
-    color: colors.secondaryLight,
-    marginTop: spacing.xs,
   },
   summaryCard: {
     ...components.card.elevated,

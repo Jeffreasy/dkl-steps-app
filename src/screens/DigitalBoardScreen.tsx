@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../services/api';
 import { colors, typography, spacing, shadows } from '../theme';
+import type { TotalStepsResponse } from '../types';
+import { getErrorMessage } from '../types';
 
-export default function DigitalBoardScreen() {
+function DigitalBoardScreen() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -12,12 +14,13 @@ export default function DigitalBoardScreen() {
   useEffect(() => {
     const fetchTotal = async () => {
       try {
-        const data = await apiFetch('/total-steps?year=2025');
+        const data = await apiFetch<TotalStepsResponse>('/total-steps?year=2025');
         setTotal(data.total_steps);
         setError('');
         setIsLoading(false);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        setError(message);
         setIsLoading(false);
       }
     };
@@ -106,6 +109,9 @@ export default function DigitalBoardScreen() {
     </LinearGradient>
   );
 }
+
+// Export memoized version
+export default memo(DigitalBoardScreen);
 
 const styles = StyleSheet.create({
   container: {

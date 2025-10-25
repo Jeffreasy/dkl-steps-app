@@ -7,6 +7,11 @@ export { default as CustomButton } from './CustomButton';
 export { default as Card } from './Card';
 export { default as CustomInput } from './CustomInput';
 
+// Screen Components - Herbruikbare screen elementen
+export { default as ScreenHeader } from './ScreenHeader';
+export { default as LoadingScreen } from './LoadingScreen';
+export { default as ErrorScreen } from './ErrorScreen';
+
 // Future components kunnen hier toegevoegd worden:
 // export { default as Badge } from './Badge';
 // export { default as Avatar } from './Avatar';
