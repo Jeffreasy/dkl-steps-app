@@ -2,7 +2,7 @@
   "expo": {
     "name": "DKL Steps App (Beta)",
     "slug": "dkl-steps-app",
-    "version": "1.0.0-beta.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

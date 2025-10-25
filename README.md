@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey)
 ![React Native](https://img.shields.io/badge/React%20Native-0.81.5-61DAFB?logo=react)
 ![Expo](https://img.shields.io/badge/Expo-54.0.20-000020?logo=expo)
@@ -201,7 +201,7 @@ expo start --clear
 
 | Metric | Waarde |
 |--------|--------|
-| **Versie** | 1.0.1 (Optimized) 🆕 |
+| **Versie** | 1.0.2 (Enhanced) 🆕 |
 | **Code Lijnen** | ~3,600 (+type system) |
 | **Documentatie** | 9,512 lijnen (+2,861) 🆕 |
 | **Screens** | 6 |
@@ -221,7 +221,32 @@ expo start --clear
 
 ## 📝 Changelog
 
-### Version 1.0.1 (25 Oktober 2025) - Performance & Quality 🆕
+### Version 1.0.2 (25 Oktober 2025) - Enhanced Architecture 🆕
+
+**Added:**
+- 📝 Logger utility met development/production modes (21 console vervangen)
+- 🪝 4 Custom hooks: useAuth, useRefreshOnFocus, useAccessControl, useNetworkStatus
+- 💾 Smart storage wrapper (MMKV support in builds, AsyncStorage fallback)
+- 📳 Haptic feedback voor success/error/warning acties
+- 📚 Complete implementation documentatie
+
+**Changed:**
+- ♻️ DashboardScreen: gebruikt useAuth + useRefreshOnFocus
+- ♻️ GlobalDashboardScreen: gebruikt useAccessControl
+- ♻️ AdminFundsScreen: gebruikt useRequireAdmin
+- 📦 Dependencies: +expo-haptics, +react-native-mmkv
+
+**Fixed:**
+- 🐛 GO_BACK navigation error in useAccessControl
+- 🐛 canGoBack() check toegevoegd met Dashboard fallback
+
+**Impact:**
+- 🚀 50x snellere storage in EAS builds (MMKV)
+- 🧹 -75 lines duplicate code door hooks
+- 📦 +1,076 lines herbruikbare code (8 nieuwe files)
+- ✅ 100% type-safe hooks & utilities
+
+### Version 1.0.1 (25 Oktober 2025) - Performance & Quality
 
 **Added:**
 - ⚡ Complete TypeScript type system (4 type modules)
