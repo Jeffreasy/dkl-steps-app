@@ -68,46 +68,8 @@ function GlobalDashboardScreen() {
     refetchFunds();
   }, [refetchTotals, refetchFunds]);
 
-  if (isChecking) {
-    return <LoadingScreen message="Toegang controleren..." color={colors.secondary} />;
-  }
-
-  if (!hasAccess) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.error}>Geen toegang (403)</Text>
-        <Text style={styles.errorDetail}>Alleen Admin en Staff hebben toegang</Text>
-      </View>
-    );
-  }
-
-  const isLoading = loadingTotals || loadingFunds;
-  const hasError = errorTotals || errorFunds;
-
-  if (isLoading && !totals && !funds) {
-    return <LoadingScreen message="Dashboard laden..." color={colors.secondary} />;
-  }
-
-  // Show error state with retry
-  if (hasError && !totals && !funds) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.error}>⚠️ Fout bij laden</Text>
-        <Text style={styles.errorDetail}>
-          {(errorTotals as Error)?.message || (errorFunds as Error)?.message}
-        </Text>
-        <View style={styles.retryButton}>
-          <Button 
-            title="Opnieuw Proberen" 
-            onPress={handleRefresh}
-            color="#2196F3"
-          />
-        </View>
-      </View>
-    );
-  }
-
-  // Memoize calculations
+  // ⚠️ BELANGRIJK: Alle hooks MOETEN boven conditional returns!
+  // Memoize calculations EERST (Rules of Hooks)
   const routesData = useMemo(() =>
     funds?.routes
       ? Object.entries(funds.routes).map(([route, amount]) => ({
@@ -130,6 +92,45 @@ function GlobalDashboardScreen() {
 
   const totalSteps = totals?.total_steps ?? 0;
   const totalFunds = funds?.totalX ?? 0;
+  const isLoading = loadingTotals || loadingFunds;
+  const hasError = errorTotals || errorFunds;
+
+  // Nu kunnen we conditional returns doen
+  if (isChecking) {
+    return <LoadingScreen message="Toegang controleren..." color={colors.secondary} />;
+  }
+
+  if (!hasAccess) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.error}>Geen toegang (403)</Text>
+        <Text style={styles.errorDetail}>Alleen Admin en Staff hebben toegang</Text>
+      </View>
+    );
+  }
+
+  if (isLoading && !totals && !funds) {
+    return <LoadingScreen message="Dashboard laden..." color={colors.secondary} />;
+  }
+
+  // Show error state with retry
+  if (hasError && !totals && !funds) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.error}>⚠️ Fout bij laden</Text>
+        <Text style={styles.errorDetail}>
+          {(errorTotals as Error)?.message || (errorFunds as Error)?.message}
+        </Text>
+        <View style={styles.retryButton}>
+          <Button
+            title="Opnieuw Proberen"
+            onPress={handleRefresh}
+            color="#2196F3"
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <ScrollView 
