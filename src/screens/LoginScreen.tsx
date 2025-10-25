@@ -21,6 +21,8 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, LoginResponse } from '../types';
 import { isAPIError, getErrorMessage } from '../types';
+import { logger } from '../utils/logger';
+import { haptics } from '../utils/haptics';
 
 function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -72,7 +74,7 @@ function LoginScreen() {
       // Normalize email (lowercase, trim)
       const normalizedEmail = email.trim().toLowerCase();
       
-      console.log('Login attempt:', { email: normalizedEmail });
+      logger.info('Login attempt:', { email: normalizedEmail });
       
       const data = await apiFetch<LoginResponse>('/auth/login', {
         method: 'POST',
@@ -82,10 +84,10 @@ function LoginScreen() {
         }),
       });
       
-      console.log('Login success:', { 
+      logger.success('Login success:', {
         hasToken: !!data.token,
         userId: data.user?.id?.substring(0, 8),
-        role: data.user?.rol 
+        role: data.user?.rol
       });
       
       // Store tokens and user data
@@ -96,6 +98,9 @@ function LoginScreen() {
         ['userRole', data.user.rol],
         ['userName', data.user.naam],
       ]);
+      
+      // Haptic feedback voor success
+      await haptics.success();
       
       // Show success feedback with custom modal
       setUserName(data.user.naam);
@@ -122,7 +127,7 @@ function LoginScreen() {
       }, 2500);
       
     } catch (error: unknown) {
-      console.error('Login failed:', error);
+      logger.error('Login failed:', error);
       
       // User-friendly error messages using type-safe error handling
       let errorMessage = 'Er ging iets mis';
@@ -147,10 +152,8 @@ function LoginScreen() {
       
       setError(errorMessage);
       
-      // Haptic feedback on error (vibrate)
-      if (Platform.OS === 'ios') {
-        // iOS haptic available
-      }
+      // Haptic feedback voor error
+      await haptics.error();
     } finally {
       setIsLoading(false);
     }

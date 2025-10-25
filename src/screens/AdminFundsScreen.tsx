@@ -1,49 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
-import { useState, useEffect, useCallback, memo } from 'react';
+import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useState, useCallback, memo } from 'react';
 import { apiFetch } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, RouteFund } from '../types';
 import { getErrorMessage } from '../types';
 import { ScreenHeader, LoadingScreen } from '../components/ui';
+import { logger } from '../utils/logger';
+import { useRequireAdmin } from '../hooks';
 
 function AdminFundsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [hasAccess, setHasAccess] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
   const [route, setRoute] = useState('');
   const [amount, setAmount] = useState('');
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const checkAccess = async () => {
-      const rol = await AsyncStorage.getItem('userRole');
-      const normalizedRole = (rol || '').toLowerCase();
-      
-      if (normalizedRole === 'admin') {
-        setHasAccess(true);
-      } else {
-        Alert.alert(
-          'Toegang Geweigerd',
-          'Alleen Admins hebben toegang tot deze functie',
-          [
-            { text: 'OK', onPress: () => navigation.goBack() }
-          ]
-        );
-      }
-      setIsChecking(false);
-    };
-    checkAccess();
-  }, [navigation]);
+  
+  // Use custom access control hook - only admins allowed
+  const { hasAccess, isChecking } = useRequireAdmin();
 
   const { data: fundsList, isLoading, error: fundsError } = useQuery<RouteFund[]>({
     queryKey: ['adminRouteFunds'],
     queryFn: async () => {
-      console.log('Fetching admin route funds...');
+      logger.api('GET', '/steps/admin/route-funds');
       const result = await apiFetch<RouteFund[]>('/steps/admin/route-funds');
-      console.log('Route funds response:', result);
+      logger.debug('Route funds response:', result);
       return result;
     },
     enabled: hasAccess,
@@ -184,7 +165,7 @@ function AdminFundsScreen() {
     );
   }
 
-  console.log('Rendering AdminFunds with data:', fundsList);
+  logger.debug('Rendering AdminFunds with data:', fundsList);
 
   return (
     <ScrollView style={styles.container}>

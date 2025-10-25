@@ -7,6 +7,7 @@
 import { Component, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Platform } from 'react-native';
 import { colors, typography, spacing, shadows } from '../theme';
+import { logger } from '../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -37,8 +38,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error details voor debugging
-    console.error('🚨 Error Boundary caught:', error);
-    console.error('Component Stack:', errorInfo.componentStack);
+    logger.error('Error Boundary caught:', error);
+    logger.error('Component Stack:', errorInfo.componentStack);
     
     // Optioneel: Stuur naar error tracking service
     // if (!__DEV__) {

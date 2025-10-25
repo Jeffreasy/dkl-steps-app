@@ -7,18 +7,17 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Platform,
   Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../services/api';
 import StepCounter from '../components/StepCounter';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, DashboardResponse } from '../types';
+import { useAuth, useRefreshOnFocus } from '../hooks';
 
 function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -27,23 +26,23 @@ function DashboardScreen() {
   const [userName, setUserName] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Use custom hooks
+  const { logout: handleLogout, getUserInfo } = useAuth();
+  
   // Load user info
   useEffect(() => {
     const loadUserInfo = async () => {
-      const role = await AsyncStorage.getItem('userRole');
-      const name = await AsyncStorage.getItem('userName');
-      setUserRole(role);
-      setUserName(name || 'Gebruiker');
+      const userInfo = await getUserInfo();
+      setUserRole(userInfo.role);
+      setUserName(userInfo.name || 'Gebruiker');
     };
     loadUserInfo();
-  }, []);
+  }, [getUserInfo]);
 
   // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['personalDashboard'] });
-    }, [queryClient])
-  );
+  useRefreshOnFocus(() => {
+    queryClient.invalidateQueries({ queryKey: ['personalDashboard'] });
+  });
   
   // Check if user is Admin or Staff (from gebruiker table) - case insensitive
   const normalizedRole = (userRole || '').toLowerCase();
@@ -77,24 +76,6 @@ function DashboardScreen() {
     await queryClient.invalidateQueries({ queryKey: ['personalDashboard'] });
     setIsRefreshing(false);
   }, [queryClient]);
-
-  const logout = useCallback(async () => {
-    Alert.alert(
-      'Uitloggen',
-      'Weet je zeker dat je wilt uitloggen?',
-      [
-        { text: 'Annuleren', style: 'cancel' },
-        {
-          text: 'Uitloggen',
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.clear();
-            navigation.replace('Login');
-          }
-        }
-      ]
-    );
-  }, [navigation]);
 
   if (isLoading && !data) {
     return (
@@ -233,9 +214,9 @@ function DashboardScreen() {
 
         {/* Logout Button */}
         <View style={styles.logoutSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.logoutButton}
-            onPress={logout}
+            onPress={handleLogout}
             activeOpacity={0.7}
           >
             <Text style={styles.logoutText}>Uitloggen</Text>
@@ -439,9 +420,9 @@ function DashboardScreen() {
 
       {/* Logout Button */}
       <View style={styles.logoutSection}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.logoutButton}
-          onPress={logout}
+          onPress={handleLogout}
           activeOpacity={0.7}
         >
           <Text style={styles.logoutText}>Uitloggen</Text>

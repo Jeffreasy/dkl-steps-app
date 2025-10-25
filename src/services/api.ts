@@ -7,6 +7,7 @@ import {
   isAPIError,
   type APIFetchOptions
 } from '../types';
+import { logger } from '../utils/logger';
 
 const BASE_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://dklemailservice.onrender.com/api';
 
@@ -36,9 +37,7 @@ export async function apiFetch<T = any>(
   const token = await AsyncStorage.getItem('authToken');
   
   // Debug logging (development only)
-  if (__DEV__) {
-    console.log('[API]', endpoint, 'Token:', token ? `${token.substring(0, 20)}...` : 'NONE');
-  }
+  logger.api(endpoint, 'Token:', token ? `${token.substring(0, 20)}...` : 'NONE');
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -62,9 +61,7 @@ export async function apiFetch<T = any>(
       clearTimeout(timeoutId);
 
       // Debug logging (development only)
-      if (__DEV__) {
-        console.log('[API]', endpoint, 'Status:', response.status);
-      }
+      logger.api(endpoint, 'Status:', response.status);
 
       // Handle non-OK responses
       if (!response.ok) {
@@ -90,9 +87,7 @@ export async function apiFetch<T = any>(
         
         // Retry with exponential backoff
         const delay = retryDelay * Math.pow(2, attempt);
-        if (__DEV__) {
-          console.log(`[API] Timeout - Retry ${attempt + 1}/${retries} na ${delay}ms`);
-        }
+        logger.info(`Timeout - Retry ${attempt + 1}/${retries} na ${delay}ms voor ${endpoint}`);
         await sleep(delay);
         continue;
       }
@@ -108,9 +103,7 @@ export async function apiFetch<T = any>(
         
         // Retry with exponential backoff
         const delay = retryDelay * Math.pow(2, attempt);
-        if (__DEV__) {
-          console.log(`[API] Network error - Retry ${attempt + 1}/${retries} na ${delay}ms`);
-        }
+        logger.info(`Network error - Retry ${attempt + 1}/${retries} na ${delay}ms voor ${endpoint}`);
         await sleep(delay);
         continue;
       }
@@ -134,9 +127,7 @@ export async function apiFetch<T = any>(
 
       // Retry with exponential backoff
       const delay = retryDelay * Math.pow(2, attempt);
-      if (__DEV__) {
-        console.log(`[API] Error - Retry ${attempt + 1}/${retries} na ${delay}ms`);
-      }
+      logger.info(`Error - Retry ${attempt + 1}/${retries} na ${delay}ms voor ${endpoint}`);
       await sleep(delay);
     }
   }

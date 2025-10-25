@@ -6,6 +6,8 @@ import { apiFetch } from '../services/api';
 import NetInfo from '@react-native-community/netinfo';
 import { colors, typography, spacing, shadows } from '../theme';
 import { isAPIError, getErrorMessage } from '../types';
+import { logger } from '../utils/logger';
+import { haptics } from '../utils/haptics';
 
 interface Props {
   onSync: () => void;
@@ -64,7 +66,7 @@ function StepCounter({ onSync }: Props) {
     setDebugInfo(`⏳ Syncing ${delta} stappen...`);
     
     try {
-      console.log('Syncing steps:', { delta, tokenPresent: !!token });
+      logger.info('Syncing steps:', { delta, tokenPresent: !!token });
       await apiFetch(`/steps`, {
         method: 'POST',
         body: JSON.stringify({ steps: delta }),
@@ -73,9 +75,13 @@ function StepCounter({ onSync }: Props) {
       setLastSyncTime(new Date());
       setDebugInfo(`✅ ${delta} stappen gesynchroniseerd!`);
       setHasAuthError(false); // Reset auth error flag on success
+      
+      // Haptic feedback voor succesvolle sync
+      await haptics.success();
+      
       onSync();
     } catch (error: unknown) {
-      console.error('Sync failed:', error);
+      logger.error('Sync failed:', error);
       
       // Handle different error types
       if (isAPIError(error)) {
@@ -89,12 +95,14 @@ function StepCounter({ onSync }: Props) {
           );
           setStepsDelta(0);
           setOfflineQueue([]);
+          await haptics.warning();
         } else {
           // Other API errors - add to offline queue if not auth error
           const message = getErrorMessage(error);
           setDebugInfo(`❌ Sync mislukt: ${message}`);
           if (!hasAuthError) {
             setOfflineQueue(prev => [...prev, delta]);
+            await haptics.error();
           }
         }
       } else {
@@ -103,6 +111,7 @@ function StepCounter({ onSync }: Props) {
         setDebugInfo(`❌ Sync mislukt: ${message}`);
         if (!hasAuthError) {
           setOfflineQueue(prev => [...prev, delta]);
+          await haptics.error();
         }
       }
     } finally {
@@ -125,7 +134,7 @@ function StepCounter({ onSync }: Props) {
         
         // Request permissions (works for both Android and iOS)
         const { status } = await Pedometer.requestPermissionsAsync();
-        console.log('Pedometer permission status:', status);
+        logger.info('Pedometer permission status:', status);
         
         if (status !== 'granted') {
           setDebugInfo('❌ Toestemming geweigerd - ga naar instellingen');
@@ -148,7 +157,7 @@ function StepCounter({ onSync }: Props) {
         setDebugInfo('✓ Pedometer actief - auto-sync elke 50 stappen');
         
       } catch (error) {
-        console.error('Pedometer init error:', error);
+        logger.error('Pedometer init error:', error);
         setDebugInfo('⚠️ Fout bij initialiseren pedometer');
         setPermissionStatus('error');
       }
@@ -161,7 +170,7 @@ function StepCounter({ onSync }: Props) {
     // Only start watching if we have permission
     if (permissionStatus === 'granted') {
       subscription = Pedometer.watchStepCount(result => {
-        console.log('Pedometer update:', result.steps);
+        logger.debug('Pedometer update:', result.steps);
         setStepsDelta(prev => {
           const newDelta = prev + result.steps;
           setDebugInfo(`✓ ${result.steps} stappen gedetecteerd`);
@@ -206,7 +215,7 @@ function StepCounter({ onSync }: Props) {
 
     autoSyncTimerRef.current = setInterval(() => {
       if (stepsDelta > 0 && !hasAuthError && !isSyncing) {
-        console.log(`Auto-sync timer triggered: ${stepsDelta} stappen`);
+        logger.info(`Auto-sync timer triggered: ${stepsDelta} stappen`);
         setDebugInfo(`⏰ Automatische sync: ${stepsDelta} stappen...`);
         syncSteps(stepsDelta);
       }
@@ -220,7 +229,7 @@ function StepCounter({ onSync }: Props) {
   }, [stepsDelta, hasAuthError, isSyncing]);
 
   const handleManualSync = useCallback(() => {
-    console.log('Manual sync requested');
+    logger.info('Manual sync requested');
     syncSteps(stepsDelta);
   }, [syncSteps, stepsDelta]);
 

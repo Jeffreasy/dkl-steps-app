@@ -4,69 +4,38 @@ import {
   Text,
   Button,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   RefreshControl,
-  TouchableOpacity,
-  Alert
+  TouchableOpacity
 } from 'react-native';
 import { apiFetch } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState, useCallback, memo, useMemo } from 'react';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useCallback, memo, useMemo } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, TotalStepsResponse, FundsDistributionResponse } from '../types';
 import { ScreenHeader, LoadingScreen } from '../components/ui';
+import { useAccessControl, useRefreshOnFocus } from '../hooks';
 
 function GlobalDashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
-  const [hasAccess, setHasAccess] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-  const [userRole, setUserRole] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
+  
+  // Use custom access control hook
+  const { hasAccess, isChecking, userRole } = useAccessControl({
+    allowedRoles: ['admin', 'staff'],
+    alertMessage: 'Alleen Admin en Staff hebben toegang tot het Globaal Dashboard.',
+  });
 
-  useEffect(() => {
-    const checkAccess = async () => {
-      const rol = await AsyncStorage.getItem('userRole');
-      const name = await AsyncStorage.getItem('userName');
-      
-      setUserRole(rol || '');
-      setUserName(name || '');
-      
-      // Case-insensitive role check
-      const normalizedRole = (rol || '').toLowerCase();
-      const allowedRoles = ['admin', 'staff'];
-      
-      if (allowedRoles.includes(normalizedRole)) {
-        setHasAccess(true);
-      } else {
-        // Show alert before going back
-        Alert.alert(
-          'Geen Toegang',
-          'Alleen Admin en Staff hebben toegang tot het Globaal Dashboard.',
-          [
-            { 
-              text: 'OK', 
-              onPress: () => navigation.goBack() 
-            }
-          ]
-        );
-      }
-      setIsChecking(false);
-    };
-    checkAccess();
-  }, [navigation]);
+  // Get userName from userRole for display (simplified - could use useAuth for full user info)
+  const userName = userRole || 'Gebruiker';
 
   // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (hasAccess) {
-        queryClient.invalidateQueries({ queryKey: ['totalSteps'] });
-        queryClient.invalidateQueries({ queryKey: ['fundsDistribution'] });
-      }
-    }, [hasAccess, queryClient])
-  );
+  useRefreshOnFocus(() => {
+    if (hasAccess) {
+      queryClient.invalidateQueries({ queryKey: ['totalSteps'] });
+      queryClient.invalidateQueries({ queryKey: ['fundsDistribution'] });
+    }
+  }, hasAccess);
 
   const {
     data: totals,
@@ -266,7 +235,7 @@ function GlobalDashboardScreen() {
       )}
 
       {/* Admin Actions */}
-      {userRole.toLowerCase() === 'admin' && (
+      {userRole?.toLowerCase() === 'admin' && (
         <View style={styles.adminSection}>
           <TouchableOpacity 
             style={styles.adminButton}
