@@ -235,7 +235,7 @@ describe('useRefreshOnFocusManual Hook', () => {
     it('should accept debounce option', () => {
       const mockRefetch = jest.fn();
       
-      renderHook(() => 
+      renderHook(() =>
         useRefreshOnFocusManual(mockRefetch, { debounceMs: 100 })
       );
 
@@ -245,13 +245,116 @@ describe('useRefreshOnFocusManual Hook', () => {
     it('should handle zero debounce', () => {
       const mockRefetch = jest.fn();
       
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useRefreshOnFocusManual(mockRefetch, { debounceMs: 0 })
       );
 
       result.current.refresh();
 
       expect(mockRefetch).toHaveBeenCalled();
+    });
+
+    it('should debounce rapid manual refresh calls', () => {
+      const mockRefetch = jest.fn();
+      
+      const { result } = renderHook(() =>
+        useRefreshOnFocusManual(mockRefetch, { debounceMs: 1000 })
+      );
+
+      // First call should go through
+      result.current.refresh();
+      expect(mockRefetch).toHaveBeenCalledTimes(1);
+
+      // Rapid second call should be debounced (within 1000ms)
+      result.current.refresh();
+      expect(mockRefetch).toHaveBeenCalledTimes(1); // Still 1, not 2
+    });
+
+    it('should allow refresh after debounce period', () => {
+      jest.useFakeTimers();
+      const mockRefetch = jest.fn();
+      
+      const { result } = renderHook(() =>
+        useRefreshOnFocusManual(mockRefetch, { debounceMs: 1000 })
+      );
+
+      // First call
+      result.current.refresh();
+      expect(mockRefetch).toHaveBeenCalledTimes(1);
+
+      // Fast-forward time past debounce
+      jest.advanceTimersByTime(1001);
+
+      // Second call should now go through
+      result.current.refresh();
+      expect(mockRefetch).toHaveBeenCalledTimes(2);
+
+      jest.useRealTimers();
+    });
+
+    it('should use setTimeout for debounced focus refresh', () => {
+      jest.useFakeTimers();
+      const mockRefetch = jest.fn();
+      
+      renderHook(() =>
+        useRefreshOnFocusManual(mockRefetch, {
+          debounceMs: 500,
+          skipFirstMount: false
+        })
+      );
+
+      // Trigger focus
+      if (mockFocusCallback) {
+        mockFocusCallback();
+      }
+
+      // Should not have called yet (debounced)
+      expect(mockRefetch).not.toHaveBeenCalled();
+
+      // Fast-forward the debounce timeout
+      jest.advanceTimersByTime(500);
+
+      // Now should have called
+      expect(mockRefetch).toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should clear timeout on subsequent focus before debounce completes', () => {
+      jest.useFakeTimers();
+      const mockRefetch = jest.fn();
+      
+      renderHook(() =>
+        useRefreshOnFocusManual(mockRefetch, {
+          debounceMs: 500,
+          skipFirstMount: false
+        })
+      );
+
+      // First focus
+      if (mockFocusCallback) {
+        mockFocusCallback();
+      }
+
+      // Advance partway
+      jest.advanceTimersByTime(250);
+
+      // Second focus before timeout completes
+      if (mockFocusCallback) {
+        mockFocusCallback();
+      }
+
+      // Advance to original timeout
+      jest.advanceTimersByTime(250);
+
+      // Should only have called once (second timeout)
+      expect(mockRefetch).toHaveBeenCalledTimes(0);
+
+      // Complete second timeout
+      jest.advanceTimersByTime(250);
+      expect(mockRefetch).toHaveBeenCalledTimes(1);
+
+      jest.useRealTimers();
     });
   });
 
@@ -298,6 +401,68 @@ describe('useRefreshOnFocusManual Hook', () => {
 
       // Should not throw errors
       expect(true).toBe(true);
+    });
+
+    it('should handle unmount gracefully with pending timeout', () => {
+      jest.useFakeTimers();
+      const mockRefetch = jest.fn();
+      
+      const { unmount } = renderHook(() =>
+        useRefreshOnFocusManual(mockRefetch, {
+          debounceMs: 500,
+          skipFirstMount: false
+        })
+      );
+
+      // Trigger focus to create timeout
+      if (mockFocusCallback) {
+        mockFocusCallback();
+      }
+
+      // Unmount should not throw error
+      expect(() => unmount()).not.toThrow();
+
+      jest.useRealTimers();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle void refetch function', () => {
+      const mockRefetch = jest.fn(() => {});
+      
+      const { result } = renderHook(() => useRefreshOnFocusManual(mockRefetch));
+
+      result.current.refresh();
+
+      expect(mockRefetch).toHaveBeenCalled();
+    });
+
+    it('should handle async refetch function', async () => {
+      const mockRefetch = jest.fn(() => Promise.resolve());
+      
+      const { result } = renderHook(() => useRefreshOnFocusManual(mockRefetch));
+
+      result.current.refresh();
+
+      expect(mockRefetch).toHaveBeenCalled();
+    });
+
+    it('should handle options as undefined', () => {
+      const mockRefetch = jest.fn();
+      
+      const { result } = renderHook(() => useRefreshOnFocusManual(mockRefetch, undefined));
+
+      expect(result.current.refresh).toBeDefined();
+    });
+
+    it('should handle partial options', () => {
+      const mockRefetch = jest.fn();
+      
+      const { result } = renderHook(() =>
+        useRefreshOnFocusManual(mockRefetch, { enabled: true })
+      );
+
+      expect(result.current.refresh).toBeDefined();
     });
   });
 });

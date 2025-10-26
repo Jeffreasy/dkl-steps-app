@@ -8,6 +8,12 @@ global.Platform = {
   isTV: false,
 };
 
+// Mock AppState globally
+global.AppState = {
+  currentState: 'active',
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+};
+
 // Mock Expo modules that are not available in tests
 jest.mock('expo-constants', () => ({
   expoConfig: {
@@ -109,16 +115,31 @@ jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
 }));
 
-// Mock React Query
-jest.mock('@tanstack/react-query', () => ({
-  ...jest.requireActual('@tanstack/react-query'),
-  QueryClient: jest.fn(() => ({
+// Mock React Query - simple version
+jest.mock('@tanstack/react-query', () => {
+  const mockQueryClient = {
     invalidateQueries: jest.fn(),
     clear: jest.fn(),
     getQueryData: jest.fn(),
     setQueryData: jest.fn(),
-  })),
-}));
+  };
+  
+  return {
+    QueryClient: jest.fn(() => mockQueryClient),
+    useQueryClient: jest.fn(() => mockQueryClient),
+    QueryClientProvider: ({ children }) => children,
+    useQuery: jest.fn(() => ({
+      data: undefined,
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    })),
+    useMutation: jest.fn(() => ({
+      mutate: jest.fn(),
+      isPending: false,
+    })),
+  };
+});
 
 // Mock jwt-decode
 jest.mock('jwt-decode', () => ({

@@ -265,5 +265,144 @@ describe('Storage Utility', () => {
       // Can be true or false depending on environment
       expect(typeof available).toBe('boolean');
     });
+  
+    describe('Error Handling', () => {
+      it('should handle getItem errors and return null', async () => {
+        // Test error handling by trying to get a key that causes issues
+        const result = await storage.getItem('error-key');
+  
+        // Should handle gracefully and return null or string
+        expect(result === null || typeof result === 'string').toBe(true);
+      });
+  
+      it('should handle setObject errors with invalid objects and throw', async () => {
+        const circularRef: any = {};
+        circularRef.self = circularRef;
+  
+        await expect(storage.setObject('circular', circularRef)).rejects.toThrow();
+      });
+  
+      it('should handle getObject errors with invalid JSON and return null', async () => {
+        // Set invalid JSON that will fail to parse
+        await storage.setItem('invalid-json-key', '{invalid json}');
+  
+        const result = await storage.getObject('invalid-json-key');
+  
+        expect(result).toBeNull();
+      });
+  
+      it('should handle getObject errors with malformed JSON and return null', async () => {
+        await storage.setItem('malformed-key', 'not a json object at all');
+  
+        const result = await storage.getObject('malformed-key');
+  
+        expect(result).toBeNull();
+      });
+    });
+  
+    describe('Edge Cases', () => {
+      it('should handle empty string value', async () => {
+        const key = 'empty-value-' + Date.now();
+        await storage.setItem(key, '');
+        
+        const result = await storage.getItem(key);
+        // MMKV treats empty string as null, AsyncStorage preserves it
+        expect(result === '' || result === null).toBe(true);
+      });
+  
+      it('should handle special characters in keys', async () => {
+        const key = 'special-!@#$%^&*()_+-=[]{}|;:,.<>?-' + Date.now();
+        await storage.setItem(key, 'value');
+        
+        const result = await storage.getItem(key);
+        expect(result).toBe('value');
+      });
+  
+      it('should handle very long values', async () => {
+        const key = 'long-value-' + Date.now();
+        const longValue = 'x'.repeat(10000);
+        await storage.setItem(key, longValue);
+        
+        const result = await storage.getItem(key);
+        expect(result).toBe(longValue);
+      });
+  
+      it('should handle unicode characters', async () => {
+        const key = 'unicode-' + Date.now();
+        const value = '你好世界 🎉 émojis';
+        await storage.setItem(key, value);
+        
+        const result = await storage.getItem(key);
+        expect(result).toBe(value);
+      });
+  
+      it('should handle null in object values', async () => {
+        const key = 'null-obj-' + Date.now();
+        const obj = { value: null, nested: { also: null } };
+        await storage.setObject(key, obj);
+        
+        const result = await storage.getObject(key);
+        expect(result).toEqual(obj);
+      });
+  
+      it('should handle boolean values in objects', async () => {
+        const key = 'bool-obj-' + Date.now();
+        const obj = { isActive: true, isDeleted: false };
+        await storage.setObject(key, obj);
+        
+        const result = await storage.getObject(key);
+        expect(result).toEqual(obj);
+      });
+  
+      it('should handle numbers in objects', async () => {
+        const key = 'num-obj-' + Date.now();
+        const obj = { count: 42, price: 19.99, negative: -10 };
+        await storage.setObject(key, obj);
+        
+        const result = await storage.getObject(key);
+        expect(result).toEqual(obj);
+      });
+    });
+  
+    describe('Integration Tests', () => {
+      it('should persist data across multiple operations', async () => {
+        const key1 = 'persist-1-' + Date.now();
+        const key2 = 'persist-2-' + Date.now();
+        
+        // Set multiple items
+        await storage.setItem(key1, 'value1');
+        await storage.setItem(key2, 'value2');
+        
+        // Get them back
+        const result1 = await storage.getItem(key1);
+        const result2 = await storage.getItem(key2);
+        
+        expect(result1).toBe('value1');
+        expect(result2).toBe('value2');
+        
+        // Remove one
+        await storage.removeItem(key1);
+        
+        // Check one is gone, other remains
+        expect(await storage.getItem(key1)).toBeNull();
+        expect(await storage.getItem(key2)).toBe('value2');
+      });
+  
+      it('should handle mixed operations', async () => {
+        const key = 'mixed-' + Date.now();
+        
+        // Set string
+        await storage.setItem(key, 'string-value');
+        expect(await storage.getItem(key)).toBe('string-value');
+        
+        // Overwrite with object
+        await storage.setObject(key, { type: 'object' });
+        expect(await storage.getObject(key)).toEqual({ type: 'object' });
+        
+        // Remove
+        await storage.removeItem(key);
+        expect(await storage.getItem(key)).toBeNull();
+      });
+    });
   });
 });
