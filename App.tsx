@@ -19,6 +19,7 @@ import {
 } from '@expo-google-fonts/roboto-slab';
 import * as SplashScreen from 'expo-splash-screen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import NetworkStatusBanner from './src/components/NetworkStatusBanner';
 import LoginScreen from './src/screens/LoginScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -97,6 +98,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <NetworkStatusBanner />
         <NavigationContainer>
           <Stack.Navigator
             initialRouteName="Login"

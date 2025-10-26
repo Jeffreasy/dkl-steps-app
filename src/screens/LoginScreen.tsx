@@ -9,20 +9,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  Image,
   Linking,
   Modal,
   Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch } from '../services/api';
+import { storage } from '../utils/storage';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, LoginResponse } from '../types';
 import { isAPIError, getErrorMessage } from '../types';
 import { logger } from '../utils/logger';
 import { haptics } from '../utils/haptics';
+import { DKLLogo } from '../components/ui';
 
 function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -91,7 +91,7 @@ function LoginScreen() {
       });
       
       // Store tokens and user data
-      await AsyncStorage.multiSet([
+      await storage.multiSet([
         ['authToken', data.token],
         ['refreshToken', data.refresh_token || ''],
         ['participantId', data.user.id],
@@ -173,11 +173,7 @@ function LoginScreen() {
         <View style={styles.content}>
           {/* Logo/Header Section */}
           <View style={styles.logoSection}>
-            <Image
-              source={require('../../assets/dkl-logo.webp')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <DKLLogo size="large" />
             <Text style={styles.title}>DKL Steps App</Text>
             <Text style={styles.tagline}>Track je stappen, maak impact!</Text>
           </View>
@@ -316,11 +312,9 @@ function LoginScreen() {
             ]}
           >
             {/* Logo */}
-            <Image
-              source={require('../../assets/dkl-logo.webp')}
-              style={styles.successLogo}
-              resizeMode="contain"
-            />
+            <View style={styles.successLogoContainer}>
+              <DKLLogo size="medium" style={styles.successLogo} />
+            </View>
             
             {/* Success Icon */}
             <View style={styles.successIconContainer}>
@@ -369,11 +363,6 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     marginBottom: spacing.xxxl + spacing.sm,
-  },
-  logo: {
-    width: 280,
-    height: 100,
-    marginBottom: spacing.lg,
   },
   title: {
     ...typography.styles.h1,
@@ -530,10 +519,12 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     ...shadows.xxl,
   },
+  successLogoContainer: {
+    marginBottom: spacing.lg,
+  },
   successLogo: {
     width: 200,
     height: 70,
-    marginBottom: spacing.lg,
   },
   successIconContainer: {
     width: 80,

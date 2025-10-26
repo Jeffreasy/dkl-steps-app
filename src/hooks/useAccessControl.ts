@@ -20,9 +20,9 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NavigationProp } from '../types';
 import { logger } from '../utils/logger';
+import { storage } from '../utils/storage';
 
 interface UseAccessControlOptions {
   /**
@@ -93,7 +93,7 @@ export function useAccessControl(
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const role = await AsyncStorage.getItem('userRole');
+        const role = await storage.getItem('userRole');
         const normalizedRole = (role || '').toLowerCase();
         
         setUserRole(normalizedRole);

@@ -1,19 +1,24 @@
-import { useState, useEffect, memo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import { useState, useEffect, memo, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../services/api';
 import { colors, typography, spacing, shadows } from '../theme';
 import type { TotalStepsResponse } from '../types';
 import { getErrorMessage } from '../types';
+import { DKLLogo } from '../components/ui';
+import { logger } from '../utils/logger';
 
 function DigitalBoardScreen() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     const fetchTotal = async () => {
       try {
+        logger.debug('DigitalBoard: Fetching total steps');
         const data = await apiFetch<TotalStepsResponse>('/total-steps?year=2025');
         setTotal(data.total_steps);
         setError('');
@@ -22,17 +27,60 @@ function DigitalBoardScreen() {
         const message = getErrorMessage(error);
         setError(message);
         setIsLoading(false);
+        logger.error('DigitalBoard fetch failed:', error);
       }
     };
 
-    // Initial fetch
-    fetchTotal();
+    // Start polling functie
+    const startPolling = () => {
+      logger.info('DigitalBoard: Starting polling (10s interval)');
+      fetchTotal(); // Initial fetch
+      
+      // Clear existing interval als die er is
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      
+      // Set up interval to fetch every 10 seconds
+      intervalRef.current = setInterval(fetchTotal, 10000);
+    };
 
-    // Set up interval to fetch every 10 seconds
-    const interval = setInterval(fetchTotal, 10000);
+    // Stop polling functie
+    const stopPolling = () => {
+      logger.info('DigitalBoard: Stopping polling (app backgrounded)');
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    // AppState change handler
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // Als app naar foreground gaat
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        logger.info('DigitalBoard: App became active - resuming polling');
+        startPolling();
+      }
+      // Als app naar background gaat
+      else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+        logger.info('DigitalBoard: App backgrounded - stopping polling');
+        stopPolling();
+      }
+      
+      appState.current = nextAppState;
+    };
+
+    // Start polling bij mount
+    startPolling();
+
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     // Cleanup
-    return () => clearInterval(interval);
+    return () => {
+      stopPolling();
+      subscription.remove();
+    };
   }, []);
 
   if (isLoading) {
@@ -57,11 +105,7 @@ function DigitalBoardScreen() {
       <View style={styles.content}>
         {/* DKL Logo Bovenaan - Op witte achtergrond voor zichtbaarheid */}
         <View style={styles.logoTopContainer}>
-          <Image
-            source={require('../../assets/dkl-logo.webp')}
-            style={styles.logoTop}
-            resizeMode="contain"
-          />
+          <DKLLogo size="large" />
         </View>
         
         {/* Subtitle */}
@@ -97,11 +141,7 @@ function DigitalBoardScreen() {
         {/* DKL Logo + Branding Onderaan - Op witte achtergrond */}
         <View style={styles.branding}>
           <View style={styles.logoBottomContainer}>
-            <Image
-              source={require('../../assets/dkl-logo.webp')}
-              style={styles.logoBottom}
-              resizeMode="contain"
-            />
+            <DKLLogo size="medium" style={styles.logoBottom} />
           </View>
           <Text style={styles.brandTagline}>Samen in beweging voor een goed doel</Text>
         </View>
@@ -132,10 +172,6 @@ const styles = StyleSheet.create({
     borderRadius: spacing.radius.xl,
     marginBottom: spacing.xxxl,
     ...shadows.xl,
-  },
-  logoTop: {
-    width: 280,
-    height: 90,
   },
   label: {
     fontSize: 24,

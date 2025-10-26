@@ -5,8 +5,9 @@
  */
 
 import { memo } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Image } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors, typography, spacing, shadows } from '../../theme';
+import DKLLogo from './DKLLogo';
 
 interface LoadingScreenProps {
   message?: string;
@@ -23,11 +24,7 @@ function LoadingScreen({
     <View style={styles.container}>
       {showLogo && (
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../../assets/dkl-logo.webp')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <DKLLogo size="medium" />
         </View>
       )}
       
@@ -56,10 +53,6 @@ const styles = StyleSheet.create({
     borderRadius: spacing.radius.lg,
     marginBottom: spacing.xxxl,
     ...shadows.lg,
-  },
-  logo: {
-    width: 200,
-    height: 70,
   },
   message: {
     ...typography.styles.body,

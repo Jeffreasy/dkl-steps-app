@@ -21,9 +21,9 @@
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NavigationProp } from '../types';
 import { logger } from '../utils/logger';
+import { storage } from '../utils/storage';
 
 interface UserInfo {
   role: string;
@@ -51,7 +51,7 @@ export function useAuth() {
           onPress: async () => {
             try {
               logger.info('User logged out');
-              await AsyncStorage.clear();
+              await storage.clear();
               navigation.replace('Login');
             } catch (error) {
               logger.error('Logout failed:', error);
@@ -70,7 +70,7 @@ export function useAuth() {
   const forceLogout = useCallback(async () => {
     try {
       logger.warn('Force logout triggered');
-      await AsyncStorage.clear();
+      await storage.clear();
       navigation.replace('Login');
     } catch (error) {
       logger.error('Force logout failed:', error);
@@ -84,10 +84,10 @@ export function useAuth() {
   const getUserInfo = useCallback(async (): Promise<UserInfo> => {
     try {
       const [role, name, token, participantId] = await Promise.all([
-        AsyncStorage.getItem('userRole'),
-        AsyncStorage.getItem('userName'),
-        AsyncStorage.getItem('authToken'),
-        AsyncStorage.getItem('participantId'),
+        storage.getItem('userRole'),
+        storage.getItem('userName'),
+        storage.getItem('authToken'),
+        storage.getItem('participantId'),
       ]);
 
       const userInfo: UserInfo = {
@@ -118,7 +118,7 @@ export function useAuth() {
    * Check of gebruiker is ingelogd
    */
   const checkAuth = useCallback(async (): Promise<boolean> => {
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await storage.getItem('authToken');
     return !!token;
   }, []);
 
@@ -126,7 +126,7 @@ export function useAuth() {
    * Check of gebruiker een specifieke role heeft
    */
   const hasRole = useCallback(async (requiredRole: string): Promise<boolean> => {
-    const role = await AsyncStorage.getItem('userRole');
+    const role = await storage.getItem('userRole');
     const normalizedRole = (role || '').toLowerCase();
     return normalizedRole === requiredRole.toLowerCase();
   }, []);
@@ -135,7 +135,7 @@ export function useAuth() {
    * Check of gebruiker één van de opgegeven roles heeft
    */
   const hasAnyRole = useCallback(async (requiredRoles: string[]): Promise<boolean> => {
-    const role = await AsyncStorage.getItem('userRole');
+    const role = await storage.getItem('userRole');
     const normalizedRole = (role || '').toLowerCase();
     return requiredRoles.some(r => r.toLowerCase() === normalizedRole);
   }, []);

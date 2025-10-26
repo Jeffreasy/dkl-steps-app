@@ -6,11 +6,13 @@
 export { default as CustomButton } from './CustomButton';
 export { default as Card } from './Card';
 export { default as CustomInput } from './CustomInput';
+export { default as DKLLogo } from './DKLLogo';
 
 // Screen Components - Herbruikbare screen elementen
 export { default as ScreenHeader } from './ScreenHeader';
 export { default as LoadingScreen } from './LoadingScreen';
 export { default as ErrorScreen } from './ErrorScreen';
+export { default as LazyLoadScreen } from './LazyLoadScreen';
 
 // Future components kunnen hier toegevoegd worden:
 // export { default as Badge } from './Badge';

@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { storage } from '../utils/storage';
 import {
   APIError,
   NetworkError,
@@ -34,7 +34,7 @@ export async function apiFetch<T = any>(
     ...fetchOptions
   } = options;
 
-  const token = await AsyncStorage.getItem('authToken');
+  const token = await storage.getItem('authToken');
   
   // Debug logging (development only)
   logger.api(endpoint, 'Token:', token ? `${token.substring(0, 20)}...` : 'NONE');

@@ -5,9 +5,10 @@
  */
 
 import { memo } from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing } from '../../theme';
+import DKLLogo from './DKLLogo';
 
 interface ScreenHeaderProps {
   title: string;
@@ -28,11 +29,7 @@ function ScreenHeader({
     <>
       {showLogo && (
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../../assets/dkl-logo.webp')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <DKLLogo size="medium" />
         </View>
       )}
       
@@ -61,10 +58,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 60 : spacing.lg,
     paddingBottom: spacing.lg,
     alignItems: 'center',
-  },
-  logo: {
-    width: 240,
-    height: 75,
   },
   gradient: {
     padding: spacing.xl,

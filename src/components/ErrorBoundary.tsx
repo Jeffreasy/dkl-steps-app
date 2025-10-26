@@ -5,9 +5,10 @@
  */
 
 import { Component, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { colors, typography, spacing, shadows } from '../theme';
 import { logger } from '../utils/logger';
+import DKLLogo from './ui/DKLLogo';
 
 interface Props {
   children: ReactNode;
@@ -68,11 +69,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           {/* DKL Logo */}
           <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/dkl-logo.webp')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <DKLLogo size="medium" />
           </View>
           
           {/* Error Icon */}
@@ -135,10 +132,6 @@ const styles = StyleSheet.create({
     borderRadius: spacing.radius.lg,
     marginBottom: spacing.xxxl,
     ...shadows.lg,
-  },
-  logo: {
-    width: 200,
-    height: 70,
   },
   emoji: {
     fontSize: 72,

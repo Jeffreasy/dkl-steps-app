@@ -5,8 +5,9 @@
  */
 
 import { memo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, typography, spacing, shadows } from '../../theme';
+import DKLLogo from './DKLLogo';
 
 interface ErrorScreenProps {
   title?: string;
@@ -29,11 +30,7 @@ function ErrorScreen({
     <View style={styles.container}>
       {showLogo && (
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../../assets/dkl-logo.webp')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <DKLLogo size="medium" />
         </View>
       )}
       
@@ -76,10 +73,6 @@ const styles = StyleSheet.create({
     borderRadius: spacing.radius.lg,
     marginBottom: spacing.xl,
     ...shadows.lg,
-  },
-  logo: {
-    width: 200,
-    height: 70,
   },
   emoji: {
     fontSize: 64,

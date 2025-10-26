@@ -7,8 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
-  Platform,
-  Image
+  Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../services/api';
@@ -18,6 +17,7 @@ import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, DashboardResponse } from '../types';
 import { useAuth, useRefreshOnFocus } from '../hooks';
+import { DKLLogo } from '../components/ui';
 
 function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -103,11 +103,7 @@ function DashboardScreen() {
         {/* Header - Gradient zoals website */}
         <View style={styles.adminHeaderContainer}>
           <View style={styles.adminLogoContainer}>
-            <Image
-              source={require('../../assets/dkl-logo.webp')}
-              style={styles.adminHeaderLogo}
-              resizeMode="contain"
-            />
+            <DKLLogo size="medium" />
           </View>
           <LinearGradient
             colors={[colors.secondary, colors.secondaryDark]}
@@ -261,11 +257,7 @@ function DashboardScreen() {
       {/* Header with Greeting - Gradient zoals website */}
       <View>
         <View style={styles.participantLogoContainer}>
-          <Image
-            source={require('../../assets/dkl-logo.webp')}
-            style={styles.participantLogo}
-            resizeMode="contain"
-          />
+          <DKLLogo size="medium" />
         </View>
         <LinearGradient
           colors={[colors.primary, colors.primaryDark]}
@@ -460,10 +452,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     alignItems: 'center',
   },
-  participantLogo: {
-    width: 240,
-    height: 75,
-  },
   header: {
     paddingBottom: spacing.xl,
     borderBottomLeftRadius: spacing.radius.xl,
@@ -493,10 +481,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 60 : spacing.lg,
     paddingBottom: spacing.lg,
     alignItems: 'center',
-  },
-  adminHeaderLogo: {
-    width: 240,
-    height: 75,
   },
   adminHeader: {
     padding: spacing.xl,
