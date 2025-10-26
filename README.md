@@ -7,6 +7,8 @@
 ![React Native](https://img.shields.io/badge/React%20Native-0.81.5-61DAFB?logo=react)
 ![Expo](https://img.shields.io/badge/Expo-54.0.20-000020?logo=expo)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-3178C6?logo=typescript)
+![Tests](https://img.shields.io/badge/tests-414%20passing-success)
+![Coverage](https://img.shields.io/badge/coverage-41%25-yellow)
 ![License](https://img.shields.io/badge/license-Proprietary-red)
 
 **Een professionele mobiele app voor het tracken van stappen tijdens De Koninklijke Loop challenge**
@@ -30,13 +32,14 @@
 - 🔐 **JWT Security** - Veilige authenticatie
 - 📱 **Cross-Platform** - iOS & Android support
 
-### 🆕 Performance & Quality (v1.0.1)
+### 🆕 Performance & Quality (v1.0.2)
 - ⚡ **40% Sneller** - React.memo() optimalisaties door hele app
 - 🎯 **100% Type Safe** - Zero `any` types, volledige TypeScript coverage
 - 🛡️ **Verbeterde API** - Retry logic (3x) + timeout + error handling
 - 🚀 **Smart Caching** - Geoptimaliseerde QueryClient (5min stale, 10min cache)
 - 🐛 **Error Boundary** - Global crash handler met user-friendly fallback
 - 🧹 **Clean Code** - -105 lijnen duplication, herbruikbare components
+- 🧪 **Testing Infrastructure** - 414 tests, 100% pass rate, Jest + RTL 🆕
 
 ## ⚡ Quick Start
 
@@ -73,10 +76,17 @@ Alle documentatie is professioneel georganiseerd in de [`docs/`](docs/) folder:
   - [DOCUMENTATIE.md](docs/02-development/DOCUMENTATIE.md) - Technische details (2,294 lijnen)
   - [THEME_USAGE.md](docs/02-development/THEME_USAGE.md) - Theme system gids
   - [FONT_SETUP.md](docs/02-development/FONT_SETUP.md) - Font installatie
+
+- **[08-testing/](docs/08-testing/)** - Testing infrastructure 🆕
+  - [README.md](docs/08-testing/README.md) - Quick reference (239 lijnen)
+  - [COMPLETE_TESTING_GUIDE.md](docs/08-testing/COMPLETE_TESTING_GUIDE.md) - Complete guide (650 lijnen)
   
-- **[06-optimization/](docs/06-optimization/)** - Code optimalisatie 🆕
+- **[06-optimization/](docs/06-optimization/)** - Code optimalisatie
   - [CODE_REVIEW_OPTIMALISATIES.md](docs/06-optimization/CODE_REVIEW_OPTIMALISATIES.md) - Analyse (2,006 lijnen)
   - [IMPLEMENTATION_SUMMARY.md](docs/06-optimization/IMPLEMENTATION_SUMMARY.md) - Implementatie (400 lijnen)
+  
+- **[07-optimization/](docs/07-optimization/)** - Advanced optimization
+  - [README.md](docs/07-optimization/README.md) - Optimization index
   
 - **[03-deployment/](docs/03-deployment/)** - Voor releases
   - [BETA_DEPLOYMENT.md](docs/03-deployment/BETA_DEPLOYMENT.md) - Deployment strategie
@@ -167,6 +177,32 @@ eas build --platform ios --profile production
 
 ## 🧪 Testing
 
+### Automated Tests 🆕
+
+```bash
+# Run all 414 tests
+npm test
+
+# Watch mode (development)
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+
+# CI/CD mode
+npm run test:ci
+```
+
+**Results:**
+- ✅ 414 tests passing (100%)
+- ✅ 19 test suites
+- ✅ 70-100% coverage voor geteste modules
+- ✅ ~18 second execution
+
+**See [docs/08-testing/](docs/08-testing/) for complete testing guide.**
+
+### Manual Testing
+
 ```bash
 # Run the app
 npm start
@@ -201,15 +237,19 @@ expo start --clear
 
 | Metric | Waarde |
 |--------|--------|
-| **Versie** | 1.0.2 (Enhanced) 🆕 |
-| **Code Lijnen** | ~3,600 (+type system) |
-| **Documentatie** | 9,512 lijnen (+2,861) 🆕 |
+| **Versie** | 1.0.2 (Testing Ready) 🆕 |
+| **Code Lijnen** | ~3,600 |
+| **Test Lijnen** | ~5,100 🆕 |
+| **Tests** | 414 passing (100%) 🆕 |
+| **Test Suites** | 19 🆕 |
+| **Documentatie** | 10,400+ lijnen 🆕 |
 | **Screens** | 6 |
-| **Components** | 14 (+4 nieuwe) 🆕 |
+| **Components** | 14 |
 | **Type Safety** | 100% (0 any types) ✅ |
-| **Performance** | +40% faster 🆕 |
-| **Code Reductie** | -105 lines duplication 🆕 |
-| **API Success Rate** | 95% (+10%) 🆕 |
+| **Test Coverage** | 41% overall, 70-100% tested modules 🆕 |
+| **Performance** | +40% faster |
+| **Code Reductie** | -105 lines duplication |
+| **API Success Rate** | 95% (+10%) |
 
 ## 🔐 Security
 
@@ -221,7 +261,29 @@ expo start --clear
 
 ## 📝 Changelog
 
-### Version 1.0.2 (25 Oktober 2025) - Enhanced Architecture 🆕
+### Version 1.0.2 (26 Oktober 2025) - Testing Infrastructure 🆕
+
+**Added:**
+- 🧪 Complete testing infrastructure (Jest + React Native Testing Library)
+- 🧪 414 automated tests across 19 test suites
+- 🧪 Comprehensive mocks voor Expo & React Native modules
+- 🧪 Coverage reporting (41% overall, 70-100% tested modules)
+- 🧪 CI/CD ready test scripts
+- 📚 Testing documentation in docs/08-testing/ (900+ lijnen)
+- 📦 react-native-nitro-modules dependency
+
+**Changed:**
+- 📁 Folder structure cleanup (docs geconsolideerd)
+- 📦 Dependencies: +jest, +@testing-library/react-native, +test dependencies
+
+**Impact:**
+- ✅ 100% test pass rate (414/414 tests)
+- ✅ 70-100% coverage voor alle geteste modules
+- ✅ Production-ready met automated quality gates
+- ✅ CI/CD integration mogelijk
+- ✅ Fast feedback loop (~18 seconds)
+
+### Version 1.0.2 (25 Oktober 2025) - Enhanced Architecture
 
 **Added:**
 - 📝 Logger utility met development/production modes (21 console vervangen)
