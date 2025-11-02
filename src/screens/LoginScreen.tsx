@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiFetch } from '../services/api';
-import { storage } from '../utils/storage';
+import { authStorage } from '../utils/authStorage';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, LoginResponse } from '../types';
@@ -78,26 +78,32 @@ function LoginScreen() {
       
       const data = await apiFetch<LoginResponse>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ 
-          email: normalizedEmail, 
-          wachtwoord: password 
+        body: JSON.stringify({
+          email: normalizedEmail,
+          wachtwoord: password
         }),
       });
       
-      logger.success('Login success:', {
+      // Validate response structure (RBAC check)
+      if (!data.user?.roles || !Array.isArray(data.user.roles)) {
+        throw new Error('Invalid server response: missing roles array');
+      }
+      
+      if (!data.user?.permissions || !Array.isArray(data.user.permissions)) {
+        throw new Error('Invalid server response: missing permissions array');
+      }
+      
+      logger.success('Login success (RBAC):', {
         hasToken: !!data.token,
         userId: data.user?.id?.substring(0, 8),
-        role: data.user?.rol
+        roles: data.user.roles.map(r => r.name).join(', '),
+        permissions: data.user.permissions.length,
       });
       
-      // Store tokens and user data
-      await storage.multiSet([
-        ['authToken', data.token],
-        ['refreshToken', data.refresh_token || ''],
-        ['participantId', data.user.id],
-        ['userRole', data.user.rol],
-        ['userName', data.user.naam],
-      ]);
+      // Store tokens and complete user data (RBAC)
+      await authStorage.saveToken(data.token);
+      await authStorage.saveRefreshToken(data.refresh_token);
+      await authStorage.saveUser(data.user);
       
       // Haptic feedback voor success
       await haptics.success();

@@ -1,18 +1,37 @@
 /**
- * useAccessControl Hook
- * 
- * Controleert of een gebruiker toegang heeft tot een screen op basis van hun role.
- * Toont automatisch een alert en navigeert terug bij geen toegang.
- * 
+ * useAccessControl Hook - RBAC Edition
+ *
+ * Controleert of een gebruiker toegang heeft tot een screen op basis van:
+ * - Roles (backwards compatible)
+ * - Permissions (nieuwe RBAC manier - PREFERRED)
+ *
  * @example
  * ```typescript
+ * // Permission-based (PREFERRED - nieuwe RBAC manier)
  * function AdminScreen() {
- *   const { hasAccess, isChecking } = useAccessControl(['admin']);
- *   
+ *   const { hasAccess, isChecking } = useAccessControl({
+ *     requiredPermissions: [['admin', 'access']]
+ *   });
+ *
  *   if (isChecking) return <LoadingScreen />;
  *   if (!hasAccess) return <ErrorScreen />;
- *   
+ *
  *   return <View>Admin Content</View>;
+ * }
+ *
+ * // Role-based (backwards compatible)
+ * function StaffScreen() {
+ *   const { hasAccess, isChecking } = useAccessControl({
+ *     allowedRoles: ['admin', 'staff']
+ *   });
+ *
+ *   return hasAccess ? <View>Content</View> : null;
+ * }
+ *
+ * // Simple role array (legacy shorthand)
+ * function OldWay() {
+ *   const { hasAccess } = useAccessControl(['admin']);
+ *   return hasAccess ? <View>Content</View> : null;
  * }
  * ```
  */
@@ -22,13 +41,28 @@ import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '../types';
 import { logger } from '../utils/logger';
-import { storage } from '../utils/storage';
+import { authStorage } from '../utils/authStorage';
 
 interface UseAccessControlOptions {
   /**
-   * Toegestane roles (lowercase)
+   * Toegestane roles (voor backwards compatibility)
+   * @deprecated Use requiredPermissions instead for better RBAC
    */
-  allowedRoles: string[];
+  allowedRoles?: string[];
+  
+  /**
+   * Required permissions - user moet ALLE hebben (AND)
+   * Format: [resource, action]
+   * Example: [['admin', 'access'], ['contact', 'write']]
+   */
+  requiredPermissions?: Array<[string, string]>;
+  
+  /**
+   * Required permissions - user moet minimaal ÉÉN hebben (OR)
+   * Format: [resource, action]
+   * Example: [['admin', 'access'], ['staff', 'access']]
+   */
+  requiredAnyPermission?: Array<[string, string]>;
   
   /**
    * Custom alert title
@@ -63,9 +97,19 @@ interface UseAccessControlReturn {
   isChecking: boolean;
   
   /**
-   * De role van de gebruiker
+   * De primary role van de gebruiker (legacy)
    */
   userRole: string | null;
+  
+  /**
+   * Alle roles van de gebruiker
+   */
+  userRoles: string[];
+  
+  /**
+   * Aantal permissions dat de gebruiker heeft
+   */
+  permissionCount: number;
 }
 
 /**
@@ -79,40 +123,102 @@ export function useAccessControl(
   const [userRole, setUserRole] = useState<string | null>(null);
   const navigation = useNavigation<NavigationProp>();
 
-  // Normalize options
+  // Normalize options - support legacy array format
+  const normalizedOptions: UseAccessControlOptions = Array.isArray(options)
+    ? { allowedRoles: options }
+    : options;
+
   const {
     allowedRoles,
+    requiredPermissions,
+    requiredAnyPermission,
     alertTitle = 'Geen Toegang',
     alertMessage,
     navigateBackOnDeny = true,
     onAccessDenied,
-  } = Array.isArray(options)
-    ? { allowedRoles: options }
-    : options;
+  } = normalizedOptions;
+
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [permissionCount, setPermissionCount] = useState(0);
 
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const role = await storage.getItem('userRole');
-        const normalizedRole = (role || '').toLowerCase();
-        
-        setUserRole(normalizedRole);
+        // Haal user data op
+        const [roles, permissions, primaryRole] = await Promise.all([
+          authStorage.getUserRoles(),
+          authStorage.getUserPermissions(),
+          authStorage.getPrimaryRole(),
+        ]);
 
-        // Check of role in toegestane lijst staat
-        const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
-        const access = normalizedAllowedRoles.includes(normalizedRole);
-        
+        const roleNames = roles.map(r => r.name);
+        setUserRole(primaryRole);
+        setUserRoles(roleNames);
+        setPermissionCount(permissions.length);
+
+        let access = false;
+        let accessMethod = '';
+
+        // PRIORITY 1: Check required permissions (ALL - AND logic)
+        if (requiredPermissions && requiredPermissions.length > 0) {
+          access = await authStorage.hasAllPermissions(...requiredPermissions);
+          accessMethod = 'requiredPermissions (ALL)';
+          
+          if (!access) {
+            logger.warn('Access denied - missing required permissions:', {
+              required: requiredPermissions,
+              userPermissions: permissions.length,
+            });
+          }
+        }
+        // PRIORITY 2: Check required any permission (ANY - OR logic)
+        else if (requiredAnyPermission && requiredAnyPermission.length > 0) {
+          access = await authStorage.hasAnyPermission(...requiredAnyPermission);
+          accessMethod = 'requiredAnyPermission (ANY)';
+          
+          if (!access) {
+            logger.warn('Access denied - no matching permission:', {
+              required: requiredAnyPermission,
+              userPermissions: permissions.length,
+            });
+          }
+        }
+        // PRIORITY 3: Check allowed roles (backwards compatibility)
+        else if (allowedRoles && allowedRoles.length > 0) {
+          const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
+          access = roleNames.some(role =>
+            normalizedAllowedRoles.includes(role.toLowerCase())
+          );
+          accessMethod = 'allowedRoles (legacy)';
+          
+          if (!access) {
+            logger.warn('Access denied - role not in allowed list:', {
+              userRoles: roleNames,
+              allowedRoles,
+            });
+          }
+        }
+        // No access control specified - DENY by default
+        else {
+          access = false;
+          accessMethod = 'none specified - deny by default';
+          logger.warn('Access denied - no access control rules specified');
+        }
+
         setHasAccess(access);
 
         if (!access) {
-          logger.warn('Access denied:', {
-            userRole: normalizedRole,
-            allowedRoles: normalizedAllowedRoles,
-          });
-
           // Genereer alert message
-          const message = alertMessage || 
-            `Alleen ${allowedRoles.join(', ')} hebben toegang tot deze functie.`;
+          let message = alertMessage;
+          if (!message) {
+            if (requiredPermissions || requiredAnyPermission) {
+              message = 'Je hebt niet de vereiste rechten voor deze functie.';
+            } else if (allowedRoles) {
+              message = `Alleen ${allowedRoles.join(', ')} hebben toegang tot deze functie.`;
+            } else {
+              message = 'Je hebt geen toegang tot deze functie.';
+            }
+          }
 
           // Toon alert
           Alert.alert(
@@ -129,11 +235,9 @@ export function useAccessControl(
                   
                   // Navigeer terug of naar Dashboard
                   if (navigateBackOnDeny) {
-                    // Check if we can go back, otherwise navigate to Dashboard
                     if (navigation.canGoBack()) {
                       navigation.goBack();
                     } else {
-                      // Fallback: navigate to Dashboard
                       (navigation as any).replace('Dashboard');
                     }
                   }
@@ -142,9 +246,10 @@ export function useAccessControl(
             ]
           );
         } else {
-          logger.debug('Access granted:', {
-            userRole: normalizedRole,
-            allowedRoles: normalizedAllowedRoles,
+          logger.debug('Access granted via:', {
+            method: accessMethod,
+            userRoles: roleNames,
+            permissionCount: permissions.length,
           });
         }
       } catch (error) {
@@ -156,32 +261,84 @@ export function useAccessControl(
     };
 
     checkAccess();
-  }, [allowedRoles, alertTitle, alertMessage, navigateBackOnDeny, onAccessDenied, navigation]);
+  }, [
+    allowedRoles,
+    requiredPermissions,
+    requiredAnyPermission,
+    alertTitle,
+    alertMessage,
+    navigateBackOnDeny,
+    onAccessDenied,
+    navigation,
+  ]);
 
   return {
     hasAccess,
     isChecking,
     userRole,
+    userRoles,
+    permissionCount,
   };
 }
 
 /**
- * Simplified version - alleen array van roles accepteren
+ * Require specific permission (NEW - PREFERRED)
+ * @example useRequirePermission('admin', 'access')
  */
-export function useRequireRole(allowedRoles: string[]): UseAccessControlReturn {
-  return useAccessControl(allowedRoles);
+export function useRequirePermission(
+  resource: string,
+  action: string
+): UseAccessControlReturn {
+  return useAccessControl({
+    requiredPermissions: [[resource, action]],
+  });
 }
 
 /**
- * Check voor single role
+ * Require any of the specified permissions (NEW - PREFERRED)
+ * @example useRequireAnyPermission([['admin', 'access'], ['staff', 'access']])
  */
-export function useRequireSingleRole(role: string): UseAccessControlReturn {
-  return useAccessControl([role]);
+export function useRequireAnyPermission(
+  ...permissions: Array<[string, string]>
+): UseAccessControlReturn {
+  return useAccessControl({
+    requiredAnyPermission: permissions,
+  });
 }
 
 /**
- * Check voor admin access
+ * Check voor admin access (NEW - permission-based)
  */
 export function useRequireAdmin(): UseAccessControlReturn {
-  return useAccessControl(['admin']);
+  return useAccessControl({
+    requiredPermissions: [['admin', 'access']],
+  });
+}
+
+/**
+ * Check voor staff access (NEW - permission-based)
+ */
+export function useRequireStaff(): UseAccessControlReturn {
+  return useAccessControl({
+    requiredAnyPermission: [
+      ['admin', 'access'],
+      ['staff', 'access'],
+    ],
+  });
+}
+
+/**
+ * Simplified version - alleen array van roles accepteren (LEGACY)
+ * @deprecated Use useRequirePermission or useRequireAnyPermission instead
+ */
+export function useRequireRole(allowedRoles: string[]): UseAccessControlReturn {
+  return useAccessControl({ allowedRoles });
+}
+
+/**
+ * Check voor single role (LEGACY)
+ * @deprecated Use useRequirePermission instead
+ */
+export function useRequireSingleRole(role: string): UseAccessControlReturn {
+  return useAccessControl({ allowedRoles: [role] });
 }

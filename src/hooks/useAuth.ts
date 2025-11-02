@@ -1,18 +1,20 @@
 /**
- * useAuth Hook
- * 
- * Centrale authentication logic voor de hele app.
- * Handelt logout, user info ophalen, en session management af.
- * 
+ * useAuth Hook - RBAC Edition
+ *
+ * Centrale authentication logic voor de hele app met RBAC support.
+ * Handelt logout, user info ophalen, permission checks en session management af.
+ *
  * @example
  * ```typescript
  * function MyScreen() {
- *   const { logout, getUserInfo, isAuthenticated } = useAuth();
- *   
+ *   const { logout, getUser, hasPermission, isAdmin } = useAuth();
+ *
  *   const handleLogout = async () => {
  *     await logout();
  *   };
- *   
+ *
+ *   const canEdit = await hasPermission('contact', 'write');
+ *
  *   return <Button onPress={handleLogout} title="Uitloggen" />;
  * }
  * ```
@@ -22,9 +24,13 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '../types';
+import type { User, Role, Permission } from '../types/api';
 import { logger } from '../utils/logger';
-import { storage } from '../utils/storage';
+import { authStorage } from '../utils/authStorage';
 
+/**
+ * Legacy UserInfo interface (voor backwards compatibility)
+ */
 interface UserInfo {
   role: string;
   name: string;
@@ -51,7 +57,7 @@ export function useAuth() {
           onPress: async () => {
             try {
               logger.info('User logged out');
-              await storage.clear();
+              await authStorage.clear();
               navigation.replace('Login');
             } catch (error) {
               logger.error('Logout failed:', error);
@@ -70,7 +76,7 @@ export function useAuth() {
   const forceLogout = useCallback(async () => {
     try {
       logger.warn('Force logout triggered');
-      await storage.clear();
+      await authStorage.clear();
       navigation.replace('Login');
     } catch (error) {
       logger.error('Force logout failed:', error);
@@ -78,28 +84,48 @@ export function useAuth() {
   }, [navigation]);
 
   /**
-   * Haal huidige user informatie op uit storage
-   * Returns user details of default values bij niet ingelogd
+   * Get complete user object with roles & permissions
+   */
+  const getUser = useCallback(async (): Promise<User | null> => {
+    try {
+      return await authStorage.getUser();
+    } catch (error) {
+      logger.error('Failed to get user:', error);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Haal huidige user informatie op uit storage (legacy format)
+   * @deprecated Use getUser() instead for full RBAC support
    */
   const getUserInfo = useCallback(async (): Promise<UserInfo> => {
     try {
-      const [role, name, token, participantId] = await Promise.all([
-        storage.getItem('userRole'),
-        storage.getItem('userName'),
-        storage.getItem('authToken'),
-        storage.getItem('participantId'),
-      ]);
+      const user = await authStorage.getUser();
+      const isAuthenticated = await authStorage.isAuthenticated();
+
+      if (!user) {
+        return {
+          role: '',
+          name: '',
+          isAuthenticated: false,
+          participantId: '',
+        };
+      }
+
+      const primaryRole = user.roles.length > 0 ? user.roles[0].name : 'user';
 
       const userInfo: UserInfo = {
-        role: role || '',
-        name: name || '',
-        isAuthenticated: !!token,
-        participantId: participantId || '',
+        role: primaryRole,
+        name: user.naam,
+        isAuthenticated,
+        participantId: user.id,
       };
 
-      logger.debug('User info retrieved:', { 
-        role: userInfo.role, 
-        isAuthenticated: userInfo.isAuthenticated 
+      logger.debug('User info retrieved:', {
+        role: userInfo.role,
+        isAuthenticated: userInfo.isAuthenticated,
+        permissions: user.permissions.length,
       });
 
       return userInfo;
@@ -118,35 +144,125 @@ export function useAuth() {
    * Check of gebruiker is ingelogd
    */
   const checkAuth = useCallback(async (): Promise<boolean> => {
-    const token = await storage.getItem('authToken');
-    return !!token;
+    return await authStorage.isAuthenticated();
+  }, []);
+
+  // ============================================================================
+  // ROLE CHECKING
+  // ============================================================================
+
+  /**
+   * Get all user roles
+   */
+  const getUserRoles = useCallback(async (): Promise<Role[]> => {
+    return await authStorage.getUserRoles();
   }, []);
 
   /**
-   * Check of gebruiker een specifieke role heeft
+   * Get primary role (first role in array)
    */
-  const hasRole = useCallback(async (requiredRole: string): Promise<boolean> => {
-    const role = await storage.getItem('userRole');
-    const normalizedRole = (role || '').toLowerCase();
-    return normalizedRole === requiredRole.toLowerCase();
+  const getPrimaryRole = useCallback(async (): Promise<string> => {
+    return await authStorage.getPrimaryRole();
   }, []);
 
   /**
-   * Check of gebruiker één van de opgegeven roles heeft
+   * Check if user has specific role
    */
-  const hasAnyRole = useCallback(async (requiredRoles: string[]): Promise<boolean> => {
-    const role = await storage.getItem('userRole');
-    const normalizedRole = (role || '').toLowerCase();
-    return requiredRoles.some(r => r.toLowerCase() === normalizedRole);
+  const hasRole = useCallback(async (roleName: string): Promise<boolean> => {
+    return await authStorage.hasRole(roleName);
+  }, []);
+
+  /**
+   * Check if user has any of the specified roles
+   */
+  const hasAnyRole = useCallback(async (...roleNames: string[]): Promise<boolean> => {
+    return await authStorage.hasAnyRole(...roleNames);
+  }, []);
+
+  // ============================================================================
+  // PERMISSION CHECKING
+  // ============================================================================
+
+  /**
+   * Get all user permissions
+   */
+  const getUserPermissions = useCallback(async (): Promise<Permission[]> => {
+    return await authStorage.getUserPermissions();
+  }, []);
+
+  /**
+   * Check if user has specific permission
+   */
+  const hasPermission = useCallback(
+    async (resource: string, action: string): Promise<boolean> => {
+      return await authStorage.hasPermission(resource, action);
+    },
+    []
+  );
+
+  /**
+   * Check if user has any of the specified permissions
+   */
+  const hasAnyPermission = useCallback(
+    async (...checks: Array<[string, string]>): Promise<boolean> => {
+      return await authStorage.hasAnyPermission(...checks);
+    },
+    []
+  );
+
+  /**
+   * Check if user has all specified permissions
+   */
+  const hasAllPermissions = useCallback(
+    async (...checks: Array<[string, string]>): Promise<boolean> => {
+      return await authStorage.hasAllPermissions(...checks);
+    },
+    []
+  );
+
+  // ============================================================================
+  // QUICK ACCESS CHECKS
+  // ============================================================================
+
+  /**
+   * Check if user is admin
+   */
+  const isAdmin = useCallback(async (): Promise<boolean> => {
+    return await authStorage.isAdmin();
+  }, []);
+
+  /**
+   * Check if user is staff
+   */
+  const isStaff = useCallback(async (): Promise<boolean> => {
+    return await authStorage.isStaff();
   }, []);
 
   return {
+    // Auth management
     logout,
     forceLogout,
-    getUserInfo,
     checkAuth,
+    
+    // User data
+    getUser,
+    getUserInfo, // Legacy
+    
+    // Role checking
+    getUserRoles,
+    getPrimaryRole,
     hasRole,
     hasAnyRole,
+    
+    // Permission checking
+    getUserPermissions,
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
+    
+    // Quick checks
+    isAdmin,
+    isStaff,
   };
 }
 

@@ -8,26 +8,40 @@ import {
   RefreshControl,
   TouchableOpacity
 } from 'react-native';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { apiFetch } from '../services/api';
-import { useCallback, memo, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, shadows, components } from '../theme';
 import type { NavigationProp, TotalStepsResponse, FundsDistributionResponse } from '../types';
 import { ScreenHeader, LoadingScreen } from '../components/ui';
-import { useAccessControl, useRefreshOnFocus } from '../hooks';
+import { useAccessControl, useRefreshOnFocus, useAuth } from '../hooks';
 
 function GlobalDashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
+  const { getPrimaryRole } = useAuth();
   
-  // Use custom access control hook
-  const { hasAccess, isChecking, userRole } = useAccessControl({
-    allowedRoles: ['admin', 'staff'],
-    alertMessage: 'Alleen Admin en Staff hebben toegang tot het Globaal Dashboard.',
+  // Use new permission-based access control
+  const { hasAccess, isChecking, userRole, userRoles } = useAccessControl({
+    requiredAnyPermission: [
+      ['admin', 'access'],
+      ['staff', 'access'],
+    ],
+    alertMessage: 'Je hebt de vereiste rechten niet voor het Globaal Dashboard.',
   });
 
-  // Get userName from userRole for display (simplified - could use useAuth for full user info)
-  const userName = userRole || 'Gebruiker';
+  // Get user name and role for display
+  const [userName, setUserName] = useState('Gebruiker');
+  
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const role = await getPrimaryRole();
+      setUserName(role);
+    };
+    if (hasAccess) {
+      loadUserInfo();
+    }
+  }, [hasAccess, getPrimaryRole]);
 
   // Auto-refresh when screen comes into focus
   useRefreshOnFocus(() => {
@@ -235,10 +249,10 @@ function GlobalDashboardScreen() {
         </View>
       )}
 
-      {/* Admin Actions */}
-      {userRole?.toLowerCase() === 'admin' && (
+      {/* Admin Actions - shown to admins only */}
+      {userRoles.some(r => r.toLowerCase() === 'admin') && (
         <View style={styles.adminSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.adminButton}
             onPress={() => navigation.navigate('AdminFunds')}
             activeOpacity={0.7}

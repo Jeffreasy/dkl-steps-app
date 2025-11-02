@@ -4,6 +4,39 @@
  */
 
 /**
+ * Role - User role met metadata
+ */
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  assigned_at?: string;
+  is_active?: boolean;
+}
+
+/**
+ * Permission - Granulaire permission voor resource/action
+ */
+export interface Permission {
+  resource: string;
+  action: string;
+}
+
+/**
+ * User - User object met RBAC support
+ */
+export interface User {
+  id: string;
+  naam: string;
+  email: string;
+  is_actief: boolean;
+  roles: Role[];
+  permissions: Permission[];
+  laatste_login?: string;
+  created_at?: string;
+}
+
+/**
  * Login Request & Response
  */
 export interface LoginRequest {
@@ -12,14 +45,10 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  success: boolean;
   token: string;
-  refresh_token?: string;
-  user: {
-    id: string;
-    naam: string;
-    email: string;
-    rol: 'deelnemer' | 'admin' | 'staff' | 'Admin' | 'Staff';
-  };
+  refresh_token: string;
+  user: User;
 }
 
 /**
@@ -97,17 +126,70 @@ export interface APIFetchOptions extends RequestInit {
 }
 
 /**
- * User Roles (normalized)
+ * User Roles (voor legacy support en quick checks)
  */
-export type UserRole = 'deelnemer' | 'admin' | 'staff';
+export type UserRole = 'deelnemer' | 'admin' | 'staff' | 'user';
 
 /**
- * Normalize user role to lowercase
+ * Get primary role name from roles array
  */
-export function normalizeUserRole(role: string): UserRole {
-  const normalized = role.toLowerCase();
-  if (normalized === 'admin' || normalized === 'staff' || normalized === 'deelnemer') {
-    return normalized as UserRole;
-  }
-  return 'deelnemer'; // default fallback
+export function getPrimaryRole(roles: Role[]): string {
+  return roles.length > 0 ? roles[0].name : 'user';
+}
+
+/**
+ * Check if user has specific role
+ */
+export function hasRole(roles: Role[], roleName: string): boolean {
+  return roles.some(r => r.name.toLowerCase() === roleName.toLowerCase());
+}
+
+/**
+ * Check if user has specific permission
+ */
+export function hasPermission(
+  permissions: Permission[],
+  resource: string,
+  action: string
+): boolean {
+  return permissions.some(
+    p => p.resource === resource && p.action === action
+  );
+}
+
+/**
+ * Check if user has any of the specified permissions
+ */
+export function hasAnyPermission(
+  permissions: Permission[],
+  checks: Array<[string, string]>
+): boolean {
+  return checks.some(([resource, action]) =>
+    hasPermission(permissions, resource, action)
+  );
+}
+
+/**
+ * Check if user has all specified permissions
+ */
+export function hasAllPermissions(
+  permissions: Permission[],
+  checks: Array<[string, string]>
+): boolean {
+  return checks.every(([resource, action]) =>
+    hasPermission(permissions, resource, action)
+  );
+}
+
+/**
+ * Refresh Token Request & Response
+ */
+export interface RefreshRequest {
+  refresh_token: string;
+}
+
+export interface RefreshResponse {
+  success: boolean;
+  token: string;
+  refresh_token: string;
 }
