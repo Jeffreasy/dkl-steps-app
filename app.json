@@ -16,7 +16,12 @@
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
-        "NSMotionUsageDescription": "De app heeft toegang nodig tot je bewegingssensoren om je stappen te tellen voor De Koninklijke Loop challenge."
+        "NSMotionUsageDescription": "De app heeft toegang nodig tot je bewegingssensoren om je stappen te tellen voor De Koninklijke Loop challenge.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "De app heeft toegang nodig tot je locatie om automatisch stappen te tellen wanneer je binnen het event gebied bent, ook op de achtergrond.",
+        "NSLocationWhenInUseUsageDescription": "De app heeft toegang nodig tot je locatie om te controleren of je binnen het event gebied bent.",
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -30,9 +35,11 @@
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACTIVITY_RECOGNITION",
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -44,14 +51,19 @@
         "projectId": "0f956768-4f43-43bf-8c89-1db197b7bece"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.1.0",
     "updates": {
       "url": "https://u.expo.dev/0f956768-4f43-43bf-8c89-1db197b7bece"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-location",
+      [
+        "expo-task-manager",
+        {
+          "locationTaskName": "background-location-task"
+        }
+      ]
     ]
   }
 }

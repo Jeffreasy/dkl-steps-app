@@ -26,12 +26,12 @@ src/components/ui/
 
 | Screen | Logo | Gradient | Theme | Branding |
 |--------|------|----------|-------|----------|
-| **LoginScreen** | ✅ Groot logo | ✅ Warm gradient | ✅ | ✅ Links naar website |
-| **DashboardScreen** | ✅ Header logo | ✅ Oranje gradient | ✅ | ✅ DKL kleuren |
-| **GlobalDashboard** | ✅ Header logo | ✅ Blauw gradient | ✅ | ✅ Professional |
-| **DigitalBoard** | ✅ Top + Bottom | ✅ Zwart gradient | ✅ | ✅ DKL branding |
-| **AdminFunds** | ✅ Header logo | ✅ Warning gradient | ✅ | ✅ Admin style |
-| **ChangePassword** | ✅ Header logo | ✅ Blauw gradient | ✅ | ✅ Security icon |
+| **LoginScreen** | ✅ Groot logo (280x100) | ✅ Warm gradient | ✅ | ✅ Links naar website |
+| **DashboardScreen** | ✅ Header logo (180-200x50-60) | ✅ Oranje gradient | ✅ | ✅ DKL kleuren |
+| **GlobalDashboard** | ✅ Header logo (160x45) | ✅ Blauw gradient | ✅ | ✅ Professional |
+| **DigitalBoard** | ✅ Top + Bottom (250x80 + 200x60) | ✅ Zwart gradient | ✅ | ✅ DKL branding |
+| **AdminFunds** | ✅ Header logo (180x50) | ✅ Warning gradient | ✅ | ✅ Admin style |
+| **ChangePassword** | ✅ Header logo (160x45) | ✅ Blauw gradient | ✅ | ✅ Security icon |
 | **StepCounter** | N/A | N/A | ✅ | ✅ Oranje accenten |
 
 ---
@@ -40,34 +40,34 @@ src/components/ui/
 
 ### **Logo Plaatsing (DKL Branding Overal):**
 
-1. **LoginScreen** 
-   - ✅ Groot logo (280x100) boven formulier
-   - ✅ Direct link naar https://www.dekoninklijkeloop.nl/aanmelden
+1. **LoginScreen**
+    - ✅ Groot logo (280x100) boven formulier via DKLLogo component
+    - ✅ Direct link naar https://www.dekoninklijkeloop.nl/aanmelden
 
 2. **DashboardScreen (Participant)**
-   - ✅ Logo in oranje gradient header (180x50)
-   - ✅ Wit getint voor contrast
+    - ✅ Logo in oranje gradient header (180-200x50-60) via ScreenHeader
+    - ✅ Wit getint voor contrast
 
 3. **DashboardScreen (Admin/Staff)**
-   - ✅ Logo in blauw gradient header (200x60)
-   - ✅ Wit getint voor contrast
+    - ✅ Logo in blauw gradient header (200x60) via ScreenHeader
+    - ✅ Wit getint voor contrast
 
 4. **GlobalDashboardScreen**
-   - ✅ Logo in blauw gradient header (160x45)
-   - ✅ Professional admin look
+    - ✅ Logo in blauw gradient header (160x45) via ScreenHeader
+    - ✅ Professional admin look
 
 5. **DigitalBoardScreen**
-   - ✅ Logo bovenaan (250x80, 90% opacity)
-   - ✅ Logo onderaan (200x60, 70% opacity)
-   - ✅ Spectaculair display board
+    - ✅ Logo bovenaan (240x75, wit achtergrond) via LiveCounter
+    - ✅ Logo onderaan (220x70, wit achtergrond) via BoardBranding
+    - ✅ Spectaculair display board
 
 6. **AdminFundsScreen**
-   - ✅ Logo in warning gradient header (180x50)
-   - ✅ Geflankeerd door ⚙️ icon
+    - ✅ Logo in warning gradient header (180x50) via ScreenHeader
+    - ✅ Geflankeerd door ⚙️ icon
 
 7. **ChangePasswordScreen**
-   - ✅ Logo in blauw gradient header (160x45)
-   - ✅ Met 🔐 security icon
+    - ✅ Logo in blauw gradient header (160x45) via ScreenHeader
+    - ✅ Met 🔐 security icon
 
 ### **Gradient Effects (Zoals Website):**
 
@@ -197,14 +197,14 @@ Maintainability:     ⭐⭐⭐⭐⭐
 
 ### **Logo Styling:**
 ```typescript
-// Wit getint voor gradient headers:
-tintColor: colors.text.inverse  // Wit logo op gekleurde achtergrond
+// DKLLogo component met predefined sizes:
+<DKLLogo size="large" />    // 280x100 - Login screen
+<DKLLogo size="medium" />   // 240x75 - Default, DigitalBoard
+<DKLLogo size="small" />    // 120x40 - Compact headers
 
-// Verschillende groottes per context:
-Login:          280x100  // Groot voor impact
-Dashboard:      180x50   // Compact voor header
-GlobalDash:     160x45   // Compact
-DigitalBoard:   250x80   // Groot voor visibility
+// Wit getint voor gradient headers via ScreenHeader component
+// Cached image source voor performance
+// Memoized component voor optimalisatie
 ```
 
 ---
@@ -438,6 +438,8 @@ Wanneer je test (`npm start` draait al):
 1. **Test de app** - `npm start` (terminal draait al!)
 2. **Geniet van de professional look!** 🎉
 3. **Deploy naar production** - Everything is ready!
+
+**Logo Integration Status:** ✅ **Volledig geïntegreerd via DKLLogo component**
 
 ---
 

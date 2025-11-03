@@ -142,6 +142,8 @@ export function useAccessControl(
   const [permissionCount, setPermissionCount] = useState(0);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAccess = async () => {
       try {
         // Haal user data op
@@ -150,6 +152,8 @@ export function useAccessControl(
           authStorage.getUserPermissions(),
           authStorage.getPrimaryRole(),
         ]);
+
+        if (!isMounted) return;
 
         const roleNames = roles.map(r => r.name);
         setUserRole(primaryRole);
@@ -205,6 +209,7 @@ export function useAccessControl(
           logger.warn('Access denied - no access control rules specified');
         }
 
+        if (!isMounted) return;
         setHasAccess(access);
 
         if (!access) {
@@ -220,31 +225,33 @@ export function useAccessControl(
             }
           }
 
-          // Toon alert
-          Alert.alert(
-            alertTitle,
-            message,
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Custom callback
-                  if (onAccessDenied) {
-                    onAccessDenied();
-                  }
-                  
-                  // Navigeer terug of naar Dashboard
-                  if (navigateBackOnDeny) {
-                    if (navigation.canGoBack()) {
-                      navigation.goBack();
-                    } else {
-                      (navigation as any).replace('Dashboard');
+          // Toon alert EENMALIG
+          setTimeout(() => {
+            Alert.alert(
+              alertTitle,
+              message,
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Custom callback
+                    if (onAccessDenied) {
+                      onAccessDenied();
                     }
-                  }
+                    
+                    // Navigeer terug of naar Dashboard
+                    if (navigateBackOnDeny) {
+                      if (navigation.canGoBack()) {
+                        navigation.goBack();
+                      } else {
+                        (navigation as any).replace('Dashboard');
+                      }
+                    }
+                  },
                 },
-              },
-            ]
-          );
+              ]
+            );
+          }, 100); // Small delay to prevent multiple alerts
         } else {
           logger.debug('Access granted via:', {
             method: accessMethod,
@@ -254,22 +261,32 @@ export function useAccessControl(
         }
       } catch (error) {
         logger.error('Access control check failed:', error);
-        setHasAccess(false);
+        if (isMounted) {
+          setHasAccess(false);
+        }
       } finally {
-        setIsChecking(false);
+        if (isMounted) {
+          setIsChecking(false);
+        }
       }
     };
 
     checkAccess();
+    
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    allowedRoles,
-    requiredPermissions,
-    requiredAnyPermission,
+    // Stable primitive dependencies only to prevent infinite loops
     alertTitle,
     alertMessage,
     navigateBackOnDeny,
-    onAccessDenied,
-    navigation,
+    // Complex objects stringified for comparison (creates new string but won't cause infinite loop)
+    JSON.stringify(allowedRoles),
+    JSON.stringify(requiredPermissions),
+    JSON.stringify(requiredAnyPermission),
+    // onAccessDenied and navigation removed - they cause re-renders
   ]);
 
   return {

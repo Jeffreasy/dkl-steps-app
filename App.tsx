@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
+import { useTokenRefresh, defineBackgroundLocationTask } from './src/hooks';
 import {
   Roboto_300Light,
   Roboto_400Regular,
@@ -23,13 +24,24 @@ import NetworkStatusBanner from './src/components/NetworkStatusBanner';
 import LoginScreen from './src/screens/LoginScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import GlobalDashboardScreen from './src/screens/GlobalDashboardScreen';
 import DigitalBoardScreen from './src/screens/DigitalBoardScreen';
 import AdminFundsScreen from './src/screens/AdminFundsScreen';
+import EventManagementScreen from './src/screens/EventManagementScreen';
 import { colors } from './src/theme';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+// Register background location task (moet VOOR App render gebeuren)
+defineBackgroundLocationTask((location) => {
+  console.log('📍 Background location update:', {
+    lat: location.latitude.toFixed(6),
+    lon: location.longitude.toFixed(6),
+    accuracy: location.accuracy,
+  });
+});
 
 const Stack = createNativeStackNavigator();
 
@@ -67,6 +79,9 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
+  // Activate automatic token refresh (prevents "Token expired" errors)
+  useTokenRefresh();
+
   // Load fonts
   const [fontsLoaded, fontError] = useFonts({
     Roboto_300Light,
@@ -124,6 +139,11 @@ export default function App() {
               options={{ title: 'Dashboard' }}
             />
             <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ title: 'Profiel' }}
+            />
+            <Stack.Screen
               name="GlobalDashboard"
               component={GlobalDashboardScreen}
               options={{ title: 'Globaal Dashboard' }}
@@ -137,6 +157,11 @@ export default function App() {
               name="AdminFunds"
               component={AdminFundsScreen}
               options={{ title: 'Admin Fondsen' }}
+            />
+            <Stack.Screen
+              name="EventManagement"
+              component={EventManagementScreen}
+              options={{ title: 'Event Management' }}
             />
           </Stack.Navigator>
         </NavigationContainer>

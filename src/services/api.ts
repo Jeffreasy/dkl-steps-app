@@ -8,8 +8,10 @@ import {
   type APIFetchOptions
 } from '../types';
 import { logger } from '../utils/logger';
+import { getBackendURL } from '../config/environment';
 
-const BASE_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://dklemailservice.onrender.com/api';
+// Get backend URL from environment config (supports local/production switching)
+const BASE_URL = getBackendURL();
 
 /**
  * Enhanced API fetch with retry logic, timeout, and proper error handling

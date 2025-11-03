@@ -42,6 +42,13 @@ import { Image } from 'react-native';
 1. **LoginScreen** - Hoofd logo boven het formulier
 2. **SplashScreen** - Optioneel tijdens app laden
 3. **Dashboard Header** - Klein logo in navigation bar (optioneel)
+4. **Digital Board** - Groot logo voor presentaties
+
+## Verwante Documentatie
+
+- **[ASSETS.md](ASSETS.md)**: Uitgebreide asset instructies
+- **[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)**: Logo gebruik in design system
+- **[UI_UX_DOCUMENTATION.md](UI_UX_DOCUMENTATION.md)**: DKLLogo component details
 
 ## Download & Conversie Opties
 

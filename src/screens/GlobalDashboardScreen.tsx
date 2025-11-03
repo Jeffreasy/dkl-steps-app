@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
-  Button,
   StyleSheet,
   ScrollView,
   RefreshControl,
@@ -11,9 +10,18 @@ import {
 import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { apiFetch } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
-import { colors, typography, spacing, shadows, components } from '../theme';
+import { colors, typography, spacing, shadows } from '../theme';
 import type { NavigationProp, TotalStepsResponse, FundsDistributionResponse } from '../types';
-import { ScreenHeader, LoadingScreen } from '../components/ui';
+import { ScreenHeader, LoadingScreen, CustomButton } from '../components/ui';
+import {
+  SummaryStats,
+  RouteDistribution,
+  QuickStats,
+  RouteStepsChart,
+  DashboardFilters,
+  RouteDetailModal,
+  PrintView
+} from '../components/globaldashboard';
 import { useAccessControl, useRefreshOnFocus, useAuth } from '../hooks';
 
 function GlobalDashboardScreen() {
@@ -32,6 +40,12 @@ function GlobalDashboardScreen() {
 
   // Get user name and role for display
   const [userName, setUserName] = useState('Gebruiker');
+  
+  // Filter and sort state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedRoute, setSelectedRoute] = useState<{ route: string; amount: number } | null>(null);
+  const [printMode, setPrintMode] = useState(false);
   
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -94,20 +108,35 @@ function GlobalDashboardScreen() {
     [funds?.routes]
   );
 
-  // Memoize sorted routes
-  const sortedRoutes = useMemo(() =>
-    routesData.sort((a, b) => {
+  // Filter and sort routes
+  const filteredAndSortedRoutes = useMemo(() => {
+    // First filter by search query
+    let result = searchQuery.trim()
+      ? routesData.filter(route =>
+          route.route.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : routesData;
+
+    // Then sort
+    result = [...result].sort((a, b) => {
       const aNum = parseInt(a.route.match(/\d+/)?.[0] || '0');
       const bNum = parseInt(b.route.match(/\d+/)?.[0] || '0');
-      return aNum - bNum;
-    }),
-    [routesData]
-  );
+      return sortOrder === 'asc' ? aNum - bNum : bNum - aNum;
+    });
+
+    return result;
+  }, [routesData, searchQuery, sortOrder]);
 
   const totalSteps = totals?.total_steps ?? 0;
   const totalFunds = funds?.totalX ?? 0;
   const isLoading = loadingTotals || loadingFunds;
   const hasError = errorTotals || errorFunds;
+  const isAdmin = userRoles.some(r => r.toLowerCase() === 'admin');
+  
+  // Route click handler
+  const handleRoutePress = useCallback((route: { route: string; amount: number }) => {
+    setSelectedRoute(route);
+  }, []);
 
   // Nu kunnen we conditional returns doen
   if (isChecking) {
@@ -135,17 +164,39 @@ function GlobalDashboardScreen() {
         <Text style={styles.errorDetail}>
           {(errorTotals as Error)?.message || (errorFunds as Error)?.message}
         </Text>
-        <View style={styles.retryButton}>
-          <Button
-            title="Opnieuw Proberen"
-            onPress={handleRefresh}
-            color="#2196F3"
-          />
-        </View>
+        <CustomButton
+          title="Opnieuw Proberen"
+          onPress={handleRefresh}
+          variant="secondary"
+          style={styles.retryButton}
+        />
       </View>
     );
   }
 
+  // Print Mode View
+  if (printMode) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.printHeader}>
+          <CustomButton
+            title="← Terug naar Dashboard"
+            onPress={() => setPrintMode(false)}
+            variant="secondary"
+            size="small"
+          />
+        </View>
+        <PrintView
+          totalSteps={totalSteps}
+          totalFunds={totalFunds}
+          routes={filteredAndSortedRoutes}
+          date={new Date()}
+        />
+      </View>
+    );
+  }
+
+  // Normal Dashboard View
   return (
     <ScrollView 
       style={styles.container}
@@ -166,108 +217,68 @@ function GlobalDashboardScreen() {
       />
 
       {/* Summary Statistics */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Totaal Stappen (2025)</Text>
-          <Text style={styles.summaryValue}>
-            {totalSteps.toLocaleString('nl-NL')}
-          </Text>
-          <Text style={styles.summarySubtext}>
-            {(totalSteps / 1000).toFixed(1)}K stappen verzameld
-          </Text>
-        </View>
+      <SummaryStats
+        totalSteps={totalSteps}
+        totalFunds={totalFunds}
+        routesCount={filteredAndSortedRoutes.length}
+      />
 
-        <View style={styles.divider} />
+      {/* Filters */}
+      <DashboardFilters
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortOrder={sortOrder}
+        onSortChange={setSortOrder}
+      />
 
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Totaal Fondsen</Text>
-          <Text style={styles.summaryValueHighlight}>
-            €{totalFunds.toLocaleString('nl-NL')}
-          </Text>
-          <Text style={styles.summarySubtext}>
-            Verdeeld over {sortedRoutes.length} routes
-          </Text>
-        </View>
-      </View>
+      {/* Chart Visualization */}
+      <RouteStepsChart routes={filteredAndSortedRoutes} />
 
       {/* Routes Distribution */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Fondsen per Route</Text>
-          {sortedRoutes.length > 0 && (
-            <Text style={styles.routeCount}>{sortedRoutes.length} routes</Text>
-          )}
-        </View>
-        
-        {sortedRoutes.length > 0 ? (
-          <View style={styles.routesList}>
-            {sortedRoutes.map((item, index) => (
-              <View key={item.route} style={styles.routeItem}>
-                <View style={styles.routeNumber}>
-                  <Text style={styles.routeNumberText}>{index + 1}</Text>
-                </View>
-                <View style={styles.routeInfo}>
-                  <Text style={styles.routeName}>{item.route}</Text>
-                  <Text style={styles.routeAmount}>€{item.amount}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📊</Text>
-            <Text style={styles.emptyText}>Geen routes geconfigureerd</Text>
-            <Text style={styles.emptySubtext}>
-              Admins kunnen routes toevoegen via Admin Funds Beheer
-            </Text>
-          </View>
-        )}
-      </View>
+      <RouteDistribution
+        routes={filteredAndSortedRoutes}
+        onRoutePress={handleRoutePress}
+      />
 
       {/* Quick Stats */}
-      {sortedRoutes.length > 0 && (
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>📈 Statistieken</Text>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Gemiddeld per route:</Text>
-            <Text style={styles.statValue}>
-              €{Math.round(totalFunds / sortedRoutes.length)}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Hoogste fonds:</Text>
-            <Text style={styles.statValue}>
-              €{Math.max(...sortedRoutes.map(r => r.amount))}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Laagste fonds:</Text>
-            <Text style={styles.statValue}>
-              €{Math.min(...sortedRoutes.map(r => r.amount))}
-            </Text>
-          </View>
-        </View>
-      )}
+      <QuickStats routes={filteredAndSortedRoutes} totalFunds={totalFunds} />
 
-      {/* Admin Actions - shown to admins only */}
-      {userRoles.some(r => r.toLowerCase() === 'admin') && (
-        <View style={styles.adminSection}>
+      {/* Actions Section */}
+      <View style={styles.actionsSection}>
+        {/* Print Mode Button */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => setPrintMode(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.actionButtonIcon}>🖨️</Text>
+          <View style={styles.actionButtonContent}>
+            <Text style={styles.actionButtonTitle}>Print Weergave</Text>
+            <Text style={styles.actionButtonSubtitle}>
+              Optimale layout voor screenshot/PDF
+            </Text>
+          </View>
+          <Text style={styles.actionButtonArrow}>→</Text>
+        </TouchableOpacity>
+
+        {/* Admin Actions - shown to admins only */}
+        {isAdmin && (
           <TouchableOpacity
-            style={styles.adminButton}
+            style={[styles.actionButton, styles.adminButton]}
             onPress={() => navigation.navigate('AdminFunds')}
             activeOpacity={0.7}
           >
-            <Text style={styles.adminButtonIcon}>⚙️</Text>
-            <View style={styles.adminButtonContent}>
-              <Text style={styles.adminButtonTitle}>Admin Funds Beheer</Text>
-              <Text style={styles.adminButtonSubtitle}>
+            <Text style={styles.actionButtonIcon}>⚙️</Text>
+            <View style={styles.actionButtonContent}>
+              <Text style={styles.actionButtonTitle}>Admin Funds Beheer</Text>
+              <Text style={styles.actionButtonSubtitle}>
                 Routes toevoegen, wijzigen of verwijderen
               </Text>
             </View>
-            <Text style={styles.adminButtonArrow}>→</Text>
+            <Text style={styles.actionButtonArrow}>→</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Refresh Hint */}
       <View style={styles.refreshHint}>
@@ -275,6 +286,14 @@ function GlobalDashboardScreen() {
           ↓ Trek naar beneden om te vernieuwen
         </Text>
       </View>
+
+      {/* Route Detail Modal */}
+      <RouteDetailModal
+        visible={selectedRoute !== null}
+        route={selectedRoute}
+        totalSteps={totalSteps}
+        onClose={() => setSelectedRoute(null)}
+      />
     </ScrollView>
   );
 }
@@ -285,7 +304,7 @@ export default memo(GlobalDashboardScreen);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.subtle, // Warme achtergrond
+    backgroundColor: colors.background.subtle,
   },
   centerContainer: {
     flex: 1,
@@ -293,205 +312,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
   },
-  summaryCard: {
-    ...components.card.elevated,
-    margin: spacing.lg,
+  printHeader: {
+    padding: spacing.lg,
     backgroundColor: colors.background.paper,
-    borderTopWidth: 4,
-    borderTopColor: colors.primary,
-  },
-  summaryItem: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.bodyMedium,
-    color: colors.text.secondary,
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  summaryValue: {
-    fontSize: 36,
-    fontFamily: typography.fonts.headingBold,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-  },
-  summaryValueHighlight: {
-    fontSize: 36,
-    fontFamily: typography.fonts.headingBold,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  summarySubtext: {
-    ...typography.styles.caption,
-    fontFamily: typography.fonts.body,
-    color: colors.text.disabled,
-    marginTop: spacing.xs,
-  },
-  divider: {
-    ...components.divider.horizontal,
-    marginVertical: spacing.lg,
-  },
-  section: {
-    ...components.card.elevated,
-    margin: spacing.lg,
-    backgroundColor: colors.background.paper,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.styles.h4,
-    fontFamily: typography.fonts.heading,
-    color: colors.text.primary,
-  },
-  routeCount: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.body,
-    color: colors.text.secondary,
-    backgroundColor: colors.background.gray50,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: spacing.radius.lg,
-  },
-  routesList: {
-    gap: 0,
-  },
-  routeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md + 2,
     borderBottomWidth: 1,
-    borderBottomColor: colors.background.gray100,
+    borderBottomColor: colors.border.default,
   },
-  routeNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${colors.secondary}1A`,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  routeNumberText: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.bodyBold,
-    fontWeight: 'bold',
-    color: colors.secondary,
-  },
-  routeInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  routeName: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.bodyMedium,
-    color: colors.text.primary,
-    fontWeight: '600',
-  },
-  routeAmount: {
-    ...typography.styles.h4,
-    fontFamily: typography.fonts.headingBold,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxxl + spacing.sm,
-  },
-  emptyEmoji: {
-    fontSize: 48,
+  actionsSection: {
+    margin: spacing.lg,
     marginBottom: spacing.lg,
   },
-  emptyText: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.bodyMedium,
-    textAlign: 'center',
-    color: colors.text.secondary,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-  emptySubtext: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.body,
-    textAlign: 'center',
-    color: colors.text.disabled,
-    paddingHorizontal: spacing.lg,
-  },
-  statsCard: {
-    ...components.card.elevated,
-    margin: spacing.lg,
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.background.paper,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.secondary,
+    padding: spacing.lg,
+    borderRadius: spacing.radius.lg,
+    marginBottom: spacing.md,
+    ...shadows.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
-  statsTitle: {
+  adminButton: {
+    backgroundColor: colors.status.warning,
+    borderColor: colors.status.warning,
+  },
+  actionButtonIcon: {
+    fontSize: 32,
+    marginRight: spacing.lg,
+  },
+  actionButtonContent: {
+    flex: 1,
+  },
+  actionButtonTitle: {
     ...typography.styles.h5,
     fontFamily: typography.fonts.heading,
+    fontWeight: 'bold',
     color: colors.text.primary,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.background.gray50,
-  },
-  statLabel: {
-    ...typography.styles.bodySmall,
+  actionButtonSubtitle: {
+    ...typography.styles.caption,
     fontFamily: typography.fonts.body,
     color: colors.text.secondary,
   },
-  statValue: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.bodyBold,
-    fontWeight: '700',
-    color: colors.secondary,
+  actionButtonArrow: {
+    fontSize: 24,
+    color: colors.text.secondary,
+    fontWeight: 'bold',
   },
   adminSection: {
     margin: spacing.lg,
     marginBottom: spacing.lg,
-  },
-  adminButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.status.warning,
-    padding: spacing.lg,
-    borderRadius: spacing.radius.lg,
-    ...shadows.md,
-  },
-  adminButtonIcon: {
-    fontSize: 32,
-    marginRight: spacing.lg,
-  },
-  adminButtonContent: {
-    flex: 1,
-  },
-  adminButtonTitle: {
-    ...typography.styles.h5,
-    fontFamily: typography.fonts.heading,
-    fontWeight: 'bold',
-    color: colors.text.inverse,
-    marginBottom: spacing.xs,
-  },
-  adminButtonSubtitle: {
-    ...typography.styles.caption,
-    fontFamily: typography.fonts.body,
-    color: colors.primaryLight,
-  },
-  adminButtonArrow: {
-    fontSize: 24,
-    color: colors.text.inverse,
-    fontWeight: 'bold',
   },
   refreshHint: {
     alignItems: 'center',
@@ -506,13 +378,6 @@ const styles = StyleSheet.create({
   retryButton: {
     marginTop: spacing.lg,
     minWidth: 200,
-  },
-  loading: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.body,
-    textAlign: 'center',
-    marginTop: spacing.md,
-    color: colors.text.secondary,
   },
   error: {
     color: colors.status.error,

@@ -278,7 +278,7 @@ describe('useAuth Hook', () => {
 
       let hasPermission;
       await act(async () => {
-        hasPermission = await result.current.hasAnyRole(['admin', 'staff']);
+        hasPermission = await result.current.hasAnyRole('admin', 'staff');
       });
 
       expect(hasPermission).toBe(true);
@@ -290,7 +290,7 @@ describe('useAuth Hook', () => {
 
       let hasPermission;
       await act(async () => {
-        hasPermission = await result.current.hasAnyRole(['admin', 'staff']);
+        hasPermission = await result.current.hasAnyRole('admin', 'staff');
       });
 
       expect(hasPermission).toBe(false);
@@ -302,7 +302,7 @@ describe('useAuth Hook', () => {
 
       let hasPermission;
       await act(async () => {
-        hasPermission = await result.current.hasAnyRole(['admin', 'staff']);
+        hasPermission = await result.current.hasAnyRole('admin', 'staff');
       });
 
       expect(hasPermission).toBe(true);
@@ -314,7 +314,7 @@ describe('useAuth Hook', () => {
 
       let hasPermission;
       await act(async () => {
-        hasPermission = await result.current.hasAnyRole([]);
+        hasPermission = await result.current.hasAnyRole();
       });
 
       expect(hasPermission).toBe(false);

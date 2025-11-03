@@ -1,9 +1,10 @@
 /**
  * DKL Brand Colors
- * Gebaseerd op de website styling
+ * Gebaseerd op de website styling met dark mode support
  */
 
-export const colors = {
+// Light theme colors
+export const lightColors = {
   // Primary brand colors (Oranje)
   primary: '#ff9328',
   primaryDark: '#e67f1c',
@@ -68,4 +69,76 @@ export const colors = {
   },
 } as const;
 
-export type ColorKey = keyof typeof colors;
+// Dark theme colors
+export const darkColors = {
+  // Primary brand colors (blijven hetzelfde, maar lichter)
+  primary: '#ffad5c',
+  primaryDark: '#ff9328',
+  primaryLight: '#ffc589',
+  
+  // Secondary colors
+  secondary: '#3b82f6',
+  secondaryDark: '#2563eb',
+  secondaryLight: '#60a5fa',
+  
+  // Status colors (iets lichter voor dark mode)
+  status: {
+    success: '#22c55e',
+    warning: '#eab308',
+    error: '#ef4444',
+    info: '#3b82f6',
+  },
+  
+  // Text colors (inverse)
+  text: {
+    primary: '#F9FAFB',      // bijna wit
+    secondary: '#9CA3AF',    // gray-400
+    disabled: '#6B7280',     // gray-600
+    inverse: '#111827',      // dark gray
+    muted: '#9CA3AF',
+  },
+  
+  // Background colors (dark)
+  background: {
+    default: '#0F172A',      // slate-900
+    paper: '#1E293B',        // slate-800
+    dark: '#020617',         // slate-950
+    subtle: '#334155',       // slate-700
+    gradient: {
+      start: '#0F172A',
+      end: '#1E293B',
+    },
+    gray50: '#334155',       // slate-700
+    gray100: '#1E293B',      // slate-800
+    gray200: '#0F172A',      // slate-900
+  },
+  
+  // Border colors (subtle in dark mode)
+  border: {
+    default: '#334155',      // slate-700
+    light: '#475569',        // slate-600
+    dark: '#1E293B',         // slate-800
+  },
+  
+  // Social media colors (same)
+  social: {
+    facebook: '#1877F2',
+    instagram: '#E4405F',
+    youtube: '#FF0000',
+    linkedin: '#0A66C2',
+  },
+  
+  // Gradients
+  gradients: {
+    primary: ['#ffad5c', '#ff9328'],
+    secondary: ['#60a5fa', '#3b82f6'],
+  },
+} as const;
+
+// Default export is light theme (for backward compatibility)
+export const colors = lightColors;
+
+// Helper function to get colors based on theme
+export const getColors = (isDark: boolean) => isDark ? darkColors : lightColors;
+
+export type ColorKey = keyof typeof lightColors;

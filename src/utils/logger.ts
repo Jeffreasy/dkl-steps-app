@@ -18,6 +18,10 @@
 
 const isDevelopment = __DEV__;
 
+// Allow disabling debug/info logs even in development
+const ENABLE_DEBUG_LOGS = false; // Set to true to enable debug spam
+const ENABLE_API_LOGS = false;   // Set to true to enable API logs
+
 /**
  * Format timestamp voor log entries
  */
@@ -40,7 +44,7 @@ export const logger = {
    * Gebruik voor gedetailleerde debugging informatie
    */
   debug: (...args: any[]) => {
-    if (isDevelopment) {
+    if (isDevelopment && ENABLE_DEBUG_LOGS) {
       console.log(`[${getTimestamp()}] 🐛 DEBUG:`, ...args);
     }
   },
@@ -81,7 +85,7 @@ export const logger = {
    * Specifiek voor API calls en responses
    */
   api: (endpoint: string, ...args: any[]) => {
-    if (isDevelopment) {
+    if (isDevelopment && ENABLE_API_LOGS) {
       console.log(`[${getTimestamp()}] 🌐 API:`, endpoint, ...args);
     }
   },

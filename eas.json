@@ -26,6 +26,11 @@
     }
   },
   "submit": {
+    "preview": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account-key.json"
+      }
+    },
     "production": {}
   }
 }

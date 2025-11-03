@@ -1,13 +1,19 @@
 /**
  * useStepTracking Hook
- * 
+ *
  * Extracted business logic van StepCounter component.
  * Handles pedometer tracking, auto-sync logic, and offline queue.
- * 
+ *
+ * Features:
+ * - Conditional tracking: alleen actief bij in fence + event actief
+ * - Auto-sync elke 50 stappen of 5 minuten
+ * - Offline queue met automatic retry
+ * - Permission handling
+ *
  * Separation of Concerns:
  * - Hook: Business logic (pedometer, sync, queue)
  * - Component: UI rendering only
- * 
+ *
  * @example
  * ```typescript
  * function StepCounter({ onSync }: Props) {
@@ -18,8 +24,15 @@
  *     syncSteps,
  *     handleCorrection,
  *     handleDiagnostics,
- *   } = useStepTracking({ onSync });
- *   
+ *   } = useStepTracking({
+ *     onSync,
+ *     conditionalTracking: {
+ *       enabled: true,
+ *       isInsideGeofence: true,
+ *       hasActiveEvent: true,
+ *     }
+ *   });
+ *
  *   return <StepDisplay stepsDelta={stepsDelta} ... />;
  * }
  * ```
@@ -34,16 +47,40 @@ import { storage } from '../utils/storage';
 import { isAPIError, getErrorMessage } from '../types';
 import { logger } from '../utils/logger';
 import { haptics } from '../utils/haptics';
+import type { ConditionalTrackingState } from '../types/geofencing';
 
 // Auto-sync configuratie
 const AUTO_SYNC_THRESHOLD = 50; // Sync elke 50 stappen
 const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // Sync elke 5 minuten
+
+interface ConditionalTrackingOptions {
+  /**
+   * Enable conditional tracking (alleen bij in fence + event actief)
+   */
+  enabled: boolean;
+  
+  /**
+   * Is gebruiker binnen geofence?
+   */
+  isInsideGeofence: boolean;
+  
+  /**
+   * Is er een actief event?
+   */
+  hasActiveEvent: boolean;
+}
 
 interface UseStepTrackingOptions {
   /**
    * Callback wanneer sync succesvol is
    */
   onSync: () => void;
+  
+  /**
+   * Conditional tracking configuration (optioneel)
+   * Indien enabled: pedometer start alleen bij in fence + event actief
+   */
+  conditionalTracking?: ConditionalTrackingOptions;
 }
 
 interface UseStepTrackingReturn {
@@ -56,6 +93,7 @@ interface UseStepTrackingReturn {
   hasAuthError: boolean;
   lastSyncTime: Date | null;
   offlineQueue: number[];
+  conditionalTrackingState: ConditionalTrackingState;
   
   // Actions
   syncSteps: (delta: number) => Promise<void>;
@@ -66,7 +104,10 @@ interface UseStepTrackingReturn {
   openSettings: () => void;
 }
 
-export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrackingReturn {
+export function useStepTracking({
+  onSync,
+  conditionalTracking,
+}: UseStepTrackingOptions): UseStepTrackingReturn {
   const [isAvailable, setIsAvailable] = useState(false);
   const [stepsDelta, setStepsDelta] = useState(0);
   const [offlineQueue, setOfflineQueue] = useState<number[]>([]);
@@ -75,6 +116,10 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
   const [permissionStatus, setPermissionStatus] = useState<string>('checking');
   const [hasAuthError, setHasAuthError] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [conditionalTrackingState, setConditionalTrackingState] = useState<ConditionalTrackingState>({
+    isTrackingEnabled: true, // Default: altijd actief (backward compatible)
+    lastUpdate: null,
+  });
   const autoSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
@@ -166,9 +211,82 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
   }, [hasAuthError, isSyncing, onSync]);
 
   /**
-   * Initialize pedometer en start tracking
+   * Update conditional tracking state
+   * FIX: Use individual properties in dependencies om infinite loop te voorkomen
    */
   useEffect(() => {
+    const enabled = conditionalTracking?.enabled ?? false;
+    const isInsideGeofence = conditionalTracking?.isInsideGeofence ?? false;
+    const hasActiveEvent = conditionalTracking?.hasActiveEvent ?? false;
+    
+    if (!enabled) {
+      // Conditional tracking disabled - altijd actief
+      setConditionalTrackingState(prev => {
+        if (prev.isTrackingEnabled) return prev; // Avoid unnecessary updates
+        return {
+          isTrackingEnabled: true,
+          lastUpdate: new Date(),
+        };
+      });
+      return;
+    }
+    
+    // Tracking enabled alleen als BEIDE conditions true zijn
+    const shouldTrack = isInsideGeofence && hasActiveEvent;
+    
+    // Determine disabled reason voor debugging
+    let disabledReason: ConditionalTrackingState['disabledReason'];
+    if (!hasActiveEvent) {
+      disabledReason = 'no_event';
+    } else if (!isInsideGeofence) {
+      disabledReason = 'outside_fence';
+    }
+    
+    setConditionalTrackingState(prev => {
+      // Only update if changed
+      if (prev.isTrackingEnabled === shouldTrack && prev.disabledReason === disabledReason) {
+        return prev;
+      }
+      
+      return {
+        isTrackingEnabled: shouldTrack,
+        disabledReason: shouldTrack ? undefined : disabledReason,
+        lastUpdate: new Date(),
+      };
+    });
+    
+    if (!shouldTrack) {
+      setDebugInfo(
+        disabledReason === 'no_event'
+          ? '⏸️ Tracking gepauzeerd: Geen actief event'
+          : '⏸️ Tracking gepauzeerd: Buiten event gebied'
+      );
+    } else {
+      setDebugInfo('✓ Tracking actief: Binnen event gebied');
+    }
+    
+    logger.info('Conditional tracking state updated:', {
+      shouldTrack,
+      isInsideGeofence,
+      hasActiveEvent,
+      disabledReason,
+    });
+  }, [
+    conditionalTracking?.enabled,
+    conditionalTracking?.isInsideGeofence,
+    conditionalTracking?.hasActiveEvent,
+  ]);
+
+  /**
+   * Initialize pedometer en start tracking
+   * Alleen actief als conditional tracking dit toestaat
+   */
+  useEffect(() => {
+    // Check conditional tracking
+    if (!conditionalTrackingState.isTrackingEnabled) {
+      logger.info('Pedometer paused: conditional tracking requirements not met');
+      return;
+    }
     const initPedometer = async () => {
       try {
         const available = await Pedometer.isAvailableAsync();
@@ -214,7 +332,7 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
 
     let subscription: any = null;
 
-    if (permissionStatus === 'granted') {
+    if (permissionStatus === 'granted' && conditionalTrackingState.isTrackingEnabled) {
       subscription = Pedometer.watchStepCount(result => {
         logger.debug('Pedometer update:', result.steps);
         setStepsDelta(prev => {
@@ -241,7 +359,7 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
         clearInterval(autoSyncTimerRef.current);
       }
     };
-  }, [offlineQueue, permissionStatus, hasAuthError, syncSteps]);
+  }, [offlineQueue, permissionStatus, hasAuthError, syncSteps, conditionalTrackingState.isTrackingEnabled]);
 
   /**
    * Combined auto-sync: threshold-based OR time-based
@@ -302,9 +420,13 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
     const name = await storage.getItem('userName');
     const participantId = await storage.getItem('participantId');
     
-    const timeSinceSync = lastSyncTime 
+    const timeSinceSync = lastSyncTime
       ? `${Math.round((Date.now() - lastSyncTime.getTime()) / 1000)}s geleden`
       : 'Nog niet gesynchroniseerd';
+    
+    const trackingStatus = conditionalTrackingState.isTrackingEnabled
+      ? 'Actief'
+      : `Gepauzeerd (${conditionalTrackingState.disabledReason || 'unknown'})`;
     
     Alert.alert(
       'Diagnostics',
@@ -316,11 +438,13 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
       `Permission: ${permissionStatus}\n` +
       `Platform: ${Platform.OS}\n` +
       `Auth Error: ${hasAuthError ? 'Ja' : 'Nee'}\n\n` +
+      `Conditional Tracking: ${conditionalTracking?.enabled ? 'Enabled' : 'Disabled'}\n` +
+      `Tracking Status: ${trackingStatus}\n\n` +
       `Laatste Sync: ${timeSinceSync}\n` +
       `Offline Queue: ${offlineQueue.length} items`,
       [{ text: 'OK' }]
     );
-  }, [isAvailable, permissionStatus, hasAuthError, lastSyncTime, offlineQueue.length]);
+  }, [isAvailable, permissionStatus, hasAuthError, lastSyncTime, offlineQueue.length, conditionalTrackingState, conditionalTracking]);
 
   /**
    * Test add handler - voeg 50 stappen toe voor testing
@@ -353,6 +477,7 @@ export function useStepTracking({ onSync }: UseStepTrackingOptions): UseStepTrac
     hasAuthError,
     lastSyncTime,
     offlineQueue,
+    conditionalTrackingState,
     
     // Actions
     syncSteps,

@@ -182,6 +182,14 @@ App
 | **@tanstack/react-query** | ^5.90.5 | Server state management & caching |
 | **@react-native-async-storage/async-storage** | 2.2.0 | Local storage & persistence |
 
+### 3.3 Theme System & Styling
+
+| Package | Versie | Doel |
+|---------|--------|------|
+| **expo-font** | ~12.0.10 | Font loading voor Roboto/Roboto Slab |
+| **@expo-google-fonts/roboto** | 0.2.3 | Roboto font familie |
+| **@expo-google-fonts/roboto-slab** | 0.2.3 | Roboto Slab font familie |
+
 ### 3.3 Navigation
 
 | Package | Versie | Doel |

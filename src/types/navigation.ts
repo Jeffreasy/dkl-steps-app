@@ -14,9 +14,11 @@ export type RootStackParamList = {
   Login: undefined;
   ChangePassword: undefined;
   Dashboard: undefined;
+  Profile: undefined;
   GlobalDashboard: undefined;
   DigitalBoard: undefined;
   AdminFunds: undefined;
+  EventManagement: undefined;
 };
 
 /**

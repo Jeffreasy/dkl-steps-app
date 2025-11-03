@@ -58,35 +58,39 @@ eas build:configure
 **Bewerk [`eas.json`](eas.json):**
 ```json
 {
+  "cli": {
+    "version": ">= 5.9.0"
+  },
   "build": {
-    "production": {
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "buildType": "archive"
-      }
-    },
-    "preview": {
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
-      },
-      "distribution": "internal"
-    },
     "development": {
+      "developmentClient": true,
+      "distribution": "internal",
       "android": {
-        "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
       },
       "ios": {
         "simulator": true
-      },
+      }
+    },
+    "preview": {
       "distribution": "internal",
-      "developmentClient": true
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "production": {
+      "android": {
+        "gradleCommand": ":app:bundleRelease"
+      }
     }
+  },
+  "submit": {
+    "preview": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account-key.json"
+      }
+    },
+    "production": {}
   }
 }
 ```
@@ -103,7 +107,28 @@ eas build:configure
   "expo": {
     "name": "DKL Steps App (Beta)",
     "slug": "dkl-steps-app",
-    "version": "1.0.0-beta.1",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "nl.dekoninklijkeloop.stepsapp",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMotionUsageDescription": "De app heeft toegang nodig tot je bewegingssensoren om je stappen te tellen voor De Koninklijke Loop challenge.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "De app heeft toegang nodig tot je locatie om automatisch stappen te tellen wanneer je binnen het event gebied bent, ook op de achtergrond.",
+        "NSLocationWhenInUseUsageDescription": "De app heeft toegang nodig tot je locatie om te controleren of je binnen het event gebied bent.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
+    },
     "android": {
       "package": "nl.dekoninklijkeloop.stepsapp",
       "versionCode": 1,
@@ -113,17 +138,38 @@ eas build:configure
       },
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
-    "ios": {
-      "bundleIdentifier": "nl.dekoninklijkeloop.stepsapp",
-      "buildNumber": "1",
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSMotionUsageDescription": "Voor stappen tellen."
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "BACKEND_URL": "https://dklemailservice.onrender.com/api",
+      "eas": {
+        "projectId": "0f956768-4f43-43bf-8c89-1db197b7bece"
       }
-    }
+    },
+    "runtimeVersion": "1.1.0",
+    "updates": {
+      "url": "https://u.expo.dev/0f956768-4f43-43bf-8c89-1db197b7bece"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-location",
+      [
+        "expo-task-manager",
+        {
+          "locationTaskName": "background-location-task"
+        }
+      ]
+    ]
   }
 }
 ```
@@ -160,8 +206,14 @@ eas build --platform all --profile preview
 
 **Na succesvolle build:**
 
-1. **Download Link** verschijnt in terminal
-2. **Of check in Expo dashboard**: https://expo.dev/accounts/[username]/projects/dkl-steps-app/builds
+1. **Download Link** verschijnt in terminal (Application Archive URL)
+2. **Of check in Expo dashboard**: https://expo.dev/accounts/jeffreyed/projects/dkl-steps-app/builds
+3. **Monitor actieve builds**: `eas build:list` (toont status: new, in queue, in progress, finished, errored)
+
+**⚠️ Belangrijke Opmerkingen:**
+- **Niet meerdere builds tegelijkertijd starten** - dit kan conflicten veroorzaken
+- **Check eerst actieve builds** met `eas build:list` voordat je nieuwe start
+- **Builds kunnen 10-20 minuten duren** afhankelijk van queue
 
 **Distributie opties:**
 
@@ -349,14 +401,21 @@ eas submit --platform all
 - Support tickets
 ```
 
+**Voor Production (1.0.0):**
+- Complete beta testing cycle (zie [`PRODUCTION_TRANSITION.md`](PRODUCTION_TRANSITION.md))
+- Fix all critical bugs
+- Performance optimization (zie [`../07-optimization/README.md`](../07-optimization/README.md))
+- Store submission (Google Play + App Store)
+- Public launch announcement
+
 ---
 
 ## 📝 Pre-Build Checklist
 
 ```bash
 # 1. Update versie nummers
-✅ app.json: "version": "1.0.0-beta.1"
-✅ package.json: "version": "1.0.0-beta.1"
+✅ app.json: "version": "1.1.0"
+✅ package.json: "version": "1.1.0"
 
 # 2. Verifieer backend URL
 ✅ app.json extra.BACKEND_URL correct?
@@ -388,8 +447,8 @@ npm install -g eas-cli
 eas login
 eas build:configure
 
-# 2. Update versie
-# Bewerk app.json: "version": "1.0.0-beta.1"
+# 2. Update versie (indien nodig)
+# Bewerk app.json: "version": "1.1.1" (voor volgende builds)
 
 # 3. Build
 eas build --platform android --profile preview
@@ -497,16 +556,82 @@ eas build:list
 # Detailed view van specifieke build
 eas build:view [BUILD_ID]
 
-# Check logs als build faalt
-eas build:logs [BUILD_ID]
+# ⚠️ Let op: eas build:logs commando bestaat niet in huidige EAS CLI versie
+# Gebruik in plaats daarvan de Logs URL uit build:view output
 ```
 
 **Expo Dashboard:**
-https://expo.dev/accounts/[username]/projects/dkl-steps-app/builds
+https://expo.dev/accounts/jeffreyed/projects/dkl-steps-app/builds
+
+**Voorbeeld van werkende build URLs:**
+- Succesvolle APK: https://expo.dev/artifacts/eas/dZdv8Ny2DxFmG4J987gFmj.apk
+- Build Details: https://expo.dev/accounts/jeffreyed/projects/dkl-steps-app/builds/692ac37d-c74c-4520-beb1-307229f2892e
 
 ---
 
-## 🐛 Common Build Issues
+## 🛡️ Compliance en Security Checks
+
+### Pre-Beta Launch Review
+
+```bash
+✅ **App Store Guidelines**
+- [ ] Privacy Policy aanwezig en compliant
+- [ ] Location permissions duidelijk uitgelegd
+- [ ] Motion & Fitness permissions gerechtvaardigd
+- [ ] Age rating correct (4+)
+- [ ] Content guidelines nageleefd
+
+✅ **GDPR Compliance**
+- [ ] Data collection transparant
+- [ ] User consent voor tracking
+- [ ] Data retention beleid
+- [ ] Right to erasure geïmplementeerd
+- [ ] Data processing agreement met backend
+
+✅ **Security Audit**
+- [ ] HTTPS only voor alle API calls
+- [ ] JWT tokens secure
+- [ ] Sensitive data encrypted
+- [ ] Certificate pinning (optioneel)
+- [ ] Security headers op backend
+```
+
+### Beta-Specific Compliance
+
+**Voor TestFlight (iOS):**
+- Max 100 internal testers
+- Max 10,000 external testers
+- Builds verlopen na 90 dagen
+- Apple Developer Program lidmaatschap vereist
+
+**Voor Google Play Beta:**
+- Unlimited internal testers
+- Max 2,000 external testers
+- Closed testing track
+- Google Play Developer account vereist
+
+### Data Safety Form (Google Play)
+
+```json
+{
+  "dataCollection": {
+    "healthInfo": {
+      "collected": true,
+      "purpose": "App functionality - step counting",
+      "sharing": false
+    },
+    "location": {
+      "collected": true,
+      "purpose": "Geofencing during events",
+      "sharing": false
+    }
+  }
+}
+```
+
+---
+
+##  Common Build Issues
 
 ### 1. Build Fails - Missing Credentials
 ```bash
@@ -514,6 +639,8 @@ https://expo.dev/accounts/[username]/projects/dkl-steps-app/builds
 eas credentials
 
 # Select platform and follow prompts
+# Voor iOS: Apple Developer account nodig
+# Voor Android: Google Service Account key
 ```
 
 ### 2. "Invalid Bundle Identifier"
@@ -521,6 +648,7 @@ eas credentials
 # Use reverse domain notation
 # app.json:
 "bundleIdentifier": "nl.dekoninklijkeloop.stepsapp"
+# Zorg voor unieke identifier
 ```
 
 ### 3. "Gradle Build Failed" (Android)
@@ -528,6 +656,7 @@ eas credentials
 # Check app.json android config
 # Ensure all required fields present
 # Verify permissions array is valid
+# Check target SDK version (34 recommended)
 ```
 
 ### 4. Build Takes Too Long
@@ -535,8 +664,36 @@ eas credentials
 # Check queue status
 eas build:list
 
-# Priority builds (paid plan)
+# Priority builds (paid plan) - voorkomt queue wachttijd
 eas build --platform android --non-interactive
+
+# Of annuleer oude builds eerst
+# eas build:cancel [BUILD_ID]
+```
+
+### 5. Build Fails - Concurrent Builds
+```bash
+# Check voor actieve builds voordat je nieuwe start
+eas build:list
+
+# Wacht tot andere builds klaar zijn voordat je nieuwe start
+# Meerdere gelijktijdige builds kunnen conflicten veroorzaken
+```
+
+### 6. OTA Update Not Working
+```bash
+# Check runtime version match
+eas update --branch beta --message "Test update"
+
+# Verify branch configuration in eas.json
+# Check Expo dashboard voor update status
+```
+
+### 7. Permissions Not Working
+```bash
+# iOS: Check Info.plist in app.json
+# Android: Check android.permissions array
+# Rebuild required voor permission changes (geen OTA)
 ```
 
 ---
@@ -602,9 +759,51 @@ Testers need:
 │   [QR CODE HERE]            │
 │                             │
 │   Scan om te installeren    │
-│   Versie: 1.0.0-beta.1      │
+│   Versie: 1.1.0      │
 └─────────────────────────────┘
 ```
+
+---
+
+## 🌿 Branching Strategy voor OTA Updates
+
+### Branch Structuur voor Beta
+
+```
+main (production)
+├── beta (beta releases)
+├── develop (development)
+│   ├── feature/geofencing
+│   ├── hotfix/sync-bug
+```
+
+### OTA Branch Mapping
+
+**Voor beta channel:**
+```bash
+# Update beta branch voor testers
+eas update --branch beta --message "Beta update: geofencing improvements"
+
+# Gebruikers met beta builds krijgen update automatisch
+```
+
+**Runtime Version Matching:**
+```json
+// eas.json
+{
+  "runtimeVersion": "1.1.0",
+  "branches": {
+    "beta": {
+      "channel": "beta"
+    }
+  }
+}
+```
+
+**Limitatie OTA:**
+- Alleen JS/React changes
+- Geen native code changes (nieuwe permissions, etc.)
+- Geen app.json changes die native rebuild vereisen
 
 ---
 
@@ -617,29 +816,68 @@ Testers need:
 # 2. Test lokaal
 npm start
 
-# 3. Update versie
-# app.json: "1.0.0-beta.1" → "1.0.0-beta.2"
+# 3. Update versie (indien nodig)
+# app.json: "1.1.0" → "1.1.1"
 
-# 4. Rebuild
+# 4. Kies update methode:
+# - Voor JS-only changes: OTA update
+# - Voor native changes: Rebuild
+
+# OTA voor JS changes:
+eas update --branch beta --message "Fix sync issue"
+
+# Of rebuild voor native changes:
 eas build --platform android --profile preview
 
 # 5. Notify testers
-# Stuur nieuwe download link
+# Stuur nieuwe download link of OTA notificatie
 ```
 
-### Voor OTA Updates (JS changes only):
+### Voor Feature Updates:
 
 ```bash
-# Publish update zonder rebuild
-eas update --branch beta --message "Fix sync issue"
-
-# Testers krijgen update automatisch bij volgende launch
+# Accumuleer features in develop branch
+# Test grondig
+# Merge naar beta branch
+# Release als OTA of rebuild afhankelijk van changes
 ```
 
-**Limitatie OTA:**
-- Alleen JS/React changes
-- Geen native code changes
-- Geen app.json permission changes
+---
+
+## 🚨 Rollback Procedures
+
+### OTA Rollback
+
+**Voor beta channel:**
+```bash
+# Publish rollback naar vorige stabiele versie
+eas update --branch beta --message "Rollback naar v1.0.0" --runtime-version 1.0.0
+
+# Testers krijgen rollback bij volgende app restart
+```
+
+### Build Rollback
+
+**Voor critical issues:**
+```bash
+# 1. Identificeer laatste stabiele build
+eas build:list
+
+# 2. Submit vorige build naar stores indien nodig
+eas submit --platform ios --url "https://expo.dev/artifacts/eas/previous-build-url"
+
+# 3. Notify testers van nieuwe download link
+```
+
+### Emergency Procedures
+
+```bash
+# Bij critical security issue:
+# 1. Stop alle beta distributions
+# 2. Reset beta branch naar main
+# 3. Publish emergency update
+# 4. Communicate met testers
+```
 
 ---
 
@@ -702,7 +940,7 @@ Team DKL
 - Platform: iOS / Android
 - Device: iPhone 14 / Samsung Galaxy S21
 - OS Versie: iOS 17.1 / Android 13
-- App Versie: 1.0.0-beta.1
+- App Versie: 1.1.0
 
 **Extra Context:**
 [Overige relevante info]
@@ -741,25 +979,33 @@ Team DKL
 
 ## 📊 Beta Metrics to Track
 
-**Via Analytics (optioneel te implementeren):**
+**Via Analytics (zie [`MONITORING.md`](MONITORING.md) voor implementatie):**
 ```typescript
-// Install: npm install @react-native-firebase/analytics
-// Of: expo install expo-firebase-analytics
-
+// Firebase Analytics integration
 // Track events:
 - Login attempts (success/fail)
 - Steps synced (count, frequency)
 - Screen views
 - Errors encountered
 - Time spent in app
+- Geofence events
+- Beta feedback submissions
 ```
 
 **Manual Tracking:**
-- Aantal downloads
-- Aantal actieve gebruikers
-- Bug reports count
-- Feature requests
-- Net Promoter Score (NPS)
+- Aantal downloads per distributie methode
+- Aantal actieve gebruikers per dag
+- Bug reports count en severity
+- Feature requests prioriteit
+- Net Promoter Score (NPS) van testers
+- Device/platform breakdown
+- Session duration gemiddelden
+
+**Success Metrics:**
+- Crash-free users: > 95%
+- App startup time: < 3 seconden
+- Step sync success rate: > 98%
+- User retention (beta periode): > 70%
 
 ---
 
@@ -812,12 +1058,178 @@ eas build:view [BUILD_ID]
 **Voor testers:**
 - Beta testing WhatsApp groep
 - Email support: beta@dekoninklijkeloop.nl
-- FAQ document met common issues
+- FAQ document met common issues (zie hieronder)
+- In-app feedback form
 
 **Voor developers:**
-- EAS Dashboard voor build logs
+- EAS Dashboard voor build logs: https://expo.dev/accounts/jeffreyed/projects/dkl-steps-app/builds
 - Expo Forums: https://forums.expo.dev
 - React Native Docs: https://reactnative.dev
+- DKL Development Team Slack
+
+---
+
+## ❓ Beta FAQ - Common Issues & Solutions
+
+### 🔧 Build & Installation Issues
+
+**Q: APK installatie faalt met "Unknown sources"**
+```
+A: Android security vereist toestemming voor sideloaded apps.
+   Ga naar Settings > Security > Unknown Sources > Toestaan
+   Of: Settings > Apps > Special access > Install unknown apps
+```
+
+**Q: iOS build werkt niet zonder Apple Developer account**
+```
+A: TestFlight vereist beta subscription ($99/jaar).
+   Workaround: Gebruik Expo Go voor development testing.
+   Of: Vraag Apple Developer toegang aan bij DKL IT.
+```
+
+**Q: Build queue te lang (>30 min wachten)**
+```
+A: EAS heeft beperkte free tier capacity.
+   Solution: Upgrade naar priority builds ($0.05/build)
+   Of: bouw alleen tijdens daluren (nacht/ochtend)
+```
+
+### 📱 App Functionality Issues
+
+**Q: Pedometer werkt niet op Android**
+```
+A: Bekend issue - pedometer werkt alleen in standalone builds.
+   Solution: Download APK build, niet Expo Go.
+   Test button simuleert stappen voor development.
+```
+
+**Q: Stappen syncen niet automatisch**
+```
+A: Sync triggert bij 50+ stappen of 5 minuten inactiviteit.
+   Check: Internet verbinding, login status, backend health.
+   Manual sync: Pull-to-refresh op dashboard.
+```
+
+**Q: Locatie permissions werken niet**
+```
+A: iOS: Check Settings > Privacy > Location > App toestemming
+   Android: Check app permissions in settings
+   Rebuild vereist bij permission changes (geen OTA fix)
+```
+
+### 🔐 Authentication Issues
+
+**Q: Login faalt met "Invalid credentials"**
+```
+A: Check: Email format, wachtwoord case-sensitive.
+   Beta credentials: Email + "DKL2025!" (voor test accounts)
+   Contact admin voor account setup indien nodig.
+```
+
+**Q: "403 Forbidden" bij stappen sync**
+```
+A: RBAC permissions issue - gebruiker heeft geen steps:write.
+   Contact admin voor role assignment.
+   Check user role in profile screen.
+```
+
+### 🌐 Network & Backend Issues
+
+**Q: "Network error" bij sync pogingen**
+```
+A: Check internet verbinding, firewall/proxy settings.
+   Backend URL: https://dklemailservice.onrender.com/api
+   Mogelijk backend downtime - check status page.
+```
+
+**Q: Offline queue sync niet werken**
+```
+A: Offline stappen worden lokaal opgeslagen.
+   Sync triggert automatisch bij internet terugkeer.
+   Manual trigger: Reopen app of pull-to-refresh.
+```
+
+### 🎯 Testing & Feedback Issues
+
+**Q: Hoe rapporteer ik bugs?**
+```
+A: Gebruik in-app feedback form (indien beschikbaar)
+   Of: Email naar beta@dekoninklijkeloop.nl
+   Include: Screenshots, device info, stappen om te reproduceren
+```
+
+**Q: App crasht bij specifieke actie**
+```
+A: Noteer exacte stappen voor reproduce.
+   Check device logs via Android Studio/Xcode.
+   Include crash logs in bug report.
+```
+
+**Q: Features werken anders dan verwacht**
+```
+A: Check deze documentatie voor expected behavior.
+   Beta versie - sommige features nog in development.
+   Feedback welkom voor UX improvements.
+```
+
+### ⚡ Performance Issues
+
+**Q: App langzaam of bevriest**
+```
+A: Check device specs (min Android 6.0, iOS 13.0)
+   Close andere apps, restart device.
+   Clear app cache via device settings.
+```
+
+**Q: Battery drain te hoog**
+```
+A: Background location tracking actief tijdens events.
+   Check: Geofence status, location permissions.
+   Battery optimalisatie: Sluit app wanneer niet in gebruik.
+```
+
+### 🔄 Update Issues
+
+**Q: OTA update niet zichtbaar**
+```
+A: Force restart app volledig (niet background).
+   Check: Runtime version match tussen build en update.
+   Manual: Re-download nieuwste APK.
+```
+
+**Q: Na update werkt oude functionaliteit niet**
+```
+A: Clear app data/cache via device settings.
+   Re-login indien nodig.
+   Contact support bij persistente issues.
+```
+
+### 🛠️ Development-Specific Issues
+
+**Q: Test button werkt niet**
+```
+A: Alleen beschikbaar in development mode.
+   Check: npm start output voor "development" mode.
+   Of: Build development profile voor test features.
+```
+
+**Q: Expo Go vs Standalone verschil**
+```
+A: Expo Go: Snelle testing, beperkte native features
+   Standalone: Volledige app, alle permissions werken
+   Use Expo Go voor UI testing, standalone voor full validation.
+```
+
+---
+
+## 📚 Troubleshooting Resources
+
+- **[`CI_CD.md`](CI_CD.md)** - Voor build pipeline issues
+- **[`MONITORING.md`](MONITORING.md)** - Voor analytics setup
+- **[`PRODUCTION_TRANSITION.md`](PRODUCTION_TRANSITION.md)** - Voor production migration
+- **[`CHANGELOG.md`](../04-reference/CHANGELOG.md)** - Voor version changes
+- **Expo Docs**: https://docs.expo.dev
+- **React Native Docs**: https://reactnative.dev/docs
 
 ---
 

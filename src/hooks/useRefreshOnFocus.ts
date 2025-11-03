@@ -32,6 +32,8 @@ export function useRefreshOnFocus(
   enabled: boolean = true
 ) {
   const isFirstMount = useRef(true);
+  const lastRefreshTime = useRef<number>(0);
+  const DEBOUNCE_MS = 1000; // Minimum 1 seconde tussen refreshes
 
   useFocusEffect(
     useCallback(() => {
@@ -42,6 +44,14 @@ export function useRefreshOnFocus(
       }
 
       if (enabled) {
+        // Debounce check - voorkom spam
+        const now = Date.now();
+        if (now - lastRefreshTime.current < DEBOUNCE_MS) {
+          logger.debug('Screen focus debounced - skipping refresh');
+          return;
+        }
+        
+        lastRefreshTime.current = now;
         logger.debug('Screen focused - triggering refetch');
         refetch();
       }

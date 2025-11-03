@@ -28,6 +28,7 @@ src/theme/
 - Roboto (300, 400, 500, 700)
 - Roboto Slab (300, 400, 500, 600, 700)
 - Automatisch laden met splash screen
+- **Status**: ✅ Volledig geïmplementeerd in App.tsx
 
 ## 📖 Hoe te gebruiken
 
@@ -125,14 +126,22 @@ typography.styles.bodySmall      // 14px, regular
 typography.styles.caption        // 12px, regular
 typography.styles.label          // 14px, medium
 typography.styles.button         // 16px, semibold
+typography.styles.buttonSmall    // 14px, semibold
+typography.styles.overline       // 12px, semibold, uppercase
 
 // Font Families
 typography.fonts.heading         // RobotoSlab_700Bold
-typography.fonts.headingBold     // RobotoSlab_700Bold
+typography.fonts.headingLight    // RobotoSlab_300Light
+typography.fonts.headingRegular  // RobotoSlab_400Regular
 typography.fonts.headingMedium   // RobotoSlab_500Medium
+typography.fonts.headingSemiBold // RobotoSlab_600SemiBold
+typography.fonts.headingBold     // RobotoSlab_700Bold
 typography.fonts.body            // Roboto_400Regular
-typography.fonts.bodyBold        // Roboto_700Bold
+typography.fonts.bodyLight       // Roboto_300Light
+typography.fonts.bodyRegular     // Roboto_400Regular
 typography.fonts.bodyMedium      // Roboto_500Medium
+typography.fonts.bodyBold        // Roboto_700Bold
+typography.fonts.mono            // Courier
 ```
 
 ### 5. Spacing
@@ -364,6 +373,22 @@ const styles = StyleSheet.create({
 1. **Logo Toevoegen** - Volg `assets/LOGO_INSTRUCTIONS.md`
 2. **Andere Screens** - AdminFundsScreen, ChangePasswordScreen, DigitalBoardScreen
 3. **Testen** - Test de app op device/emulator
+
+## ✅ Uitbreiding Status
+
+### Componenten die Theme Gebruiken
+- ✅ **69+ componenten** gebruiken theme imports
+- ✅ **211+ fontFamily referenties** naar typography.fonts
+- ✅ **Alle screens** hebben theme-based styling
+- ✅ **TypeScript types** volledig geïmplementeerd
+
+### Font Usage Statistieken
+- **typography.fonts.heading**: 15+ gebruik
+- **typography.fonts.body**: 25+ gebruik
+- **typography.fonts.bodyBold**: 36+ gebruik
+- **typography.fonts.bodyMedium**: 46+ gebruik
+- **typography.fonts.headingBold**: 36+ gebruik
+- **typography.fonts.headingMedium**: 1+ gebruik
 
 ## 💡 Tips
 

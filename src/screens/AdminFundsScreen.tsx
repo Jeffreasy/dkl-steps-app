@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useState, useCallback, memo } from 'react';
 import { apiFetch } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
-import { colors, typography, spacing, shadows, components } from '../theme';
+import { colors, typography, spacing, components } from '../theme';
 import type { NavigationProp, RouteFund } from '../types';
 import { getErrorMessage } from '../types';
-import { ScreenHeader, LoadingScreen } from '../components/ui';
+import { ScreenHeader, LoadingScreen, CustomButton } from '../components/ui';
+import { RoutesList, AddRouteForm } from '../components/admin';
 import { logger } from '../utils/logger';
+import { transformRouteFundsResponse } from '../utils/apiHelpers';
 import { useRequireAdmin } from '../hooks';
 
 function AdminFundsScreen() {
@@ -23,12 +25,16 @@ function AdminFundsScreen() {
     queryKey: ['adminRouteFunds'],
     queryFn: async () => {
       logger.api('GET', '/steps/admin/route-funds');
-      const result = await apiFetch<RouteFund[]>('/steps/admin/route-funds');
-      logger.debug('Route funds response:', result);
-      return result;
+      const result = await apiFetch<any>('/steps/admin/route-funds');
+      logger.debug('Route funds raw response:', result);
+      
+      // Use utility function to transform and validate
+      return transformRouteFundsResponse(result);
     },
-    enabled: hasAccess,
+    enabled: hasAccess && !isChecking,
     retry: 2,
+    staleTime: 30000, // 30 seconds
+    refetchOnMount: true,
   });
 
   const createMut = useMutation({
@@ -151,10 +157,11 @@ function AdminFundsScreen() {
         <View style={styles.errorCard}>
           <Text style={styles.error}>⚠️ Fout bij laden routes</Text>
           <Text style={styles.errorDetail}>{(fundsError as Error).message}</Text>
-          <Button
+          <CustomButton
             title="Opnieuw Proberen"
             onPress={() => queryClient.invalidateQueries({ queryKey: ['adminRouteFunds'] })}
-            color="#FF9800"
+            variant="secondary"
+            style={{ marginTop: spacing.md }}
           />
           <Text style={styles.debugText}>
             Endpoint: GET /steps/admin/route-funds{'\n'}
@@ -176,83 +183,23 @@ function AdminFundsScreen() {
         icon="⚙️"
       />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Bestaande Routes {fundsList ? `(${fundsList.length})` : ''}
-        </Text>
-        
-        {/* Debug info */}
-        <Text style={styles.debugInfo}>
-          Data type: {Array.isArray(fundsList) ? 'Array' : typeof fundsList}{'\n'}
-          Length: {fundsList?.length ?? 'undefined'}
-        </Text>
-        
-        {fundsList && Array.isArray(fundsList) && fundsList.length > 0 ? (
-          <View>
-            {fundsList.map((item: RouteFund) => (
-              <View key={item.id} style={styles.item}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemRoute}>{item.route}</Text>
-                  <Text style={styles.itemAmount}>€{item.amount}</Text>
-                </View>
-                <View style={styles.itemActions}>
-                  <View style={styles.actionButton}>
-                    <Button 
-                      title="-10" 
-                      onPress={() => handleUpdate(item, -10)} 
-                      color="#f44336"
-                      disabled={updateMut.isPending}
-                    />
-                  </View>
-                  <View style={styles.actionButton}>
-                    <Button 
-                      title="+10" 
-                      onPress={() => handleUpdate(item, 10)} 
-                      color="#4CAF50"
-                      disabled={updateMut.isPending}
-                    />
-                  </View>
-                  <View style={styles.actionButton}>
-                    <Button 
-                      title="🗑️" 
-                      onPress={() => handleDelete(item)} 
-                      color="#9E9E9E"
-                      disabled={deleteMut.isPending}
-                    />
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.emptyText}>Geen routes gevonden</Text>
-        )}
-      </View>
+      <RoutesList
+        routes={fundsList || []}
+        onUpdate={handleUpdate}
+        onDelete={handleDelete}
+        isUpdating={updateMut.isPending}
+        isDeleting={deleteMut.isPending}
+        showDebug={true}
+      />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Nieuwe Route Toevoegen</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="Route (bijv. 5 KM)" 
-          value={route} 
-          onChangeText={setRoute}
-          editable={!createMut.isPending}
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Bedrag (€)" 
-          value={amount} 
-          onChangeText={setAmount} 
-          keyboardType="numeric"
-          editable={!createMut.isPending}
-        />
-        <Button 
-          title={createMut.isPending ? "Toevoegen..." : "Toevoegen"} 
-          onPress={handleCreate} 
-          disabled={!route || !amount || createMut.isPending}
-          color="#FF9800"
-        />
-      </View>
+      <AddRouteForm
+        route={route}
+        amount={amount}
+        onRouteChange={setRoute}
+        onAmountChange={setAmount}
+        onSubmit={handleCreate}
+        isSubmitting={createMut.isPending}
+      />
     </ScrollView>
   );
 }
@@ -270,70 +217,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
-  },
-  section: {
-    ...components.card.elevated,
-    margin: spacing.lg,
-    marginTop: spacing.xl,
-    borderTopWidth: 3,
-    borderTopColor: colors.status.warning,
-  },
-  sectionTitle: {
-    ...typography.styles.h5,
-    fontFamily: typography.fonts.heading,
-    marginBottom: spacing.lg,
-    color: colors.text.primary,
-  },
-  item: {
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderColor: colors.border.light,
-  },
-  itemInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  itemRoute: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.bodyMedium,
-    fontWeight: '500',
-    color: colors.text.primary,
-  },
-  itemAmount: {
-    ...typography.styles.h5,
-    fontFamily: typography.fonts.headingBold,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
-  actionButton: {
-    minWidth: 60,
-  },
-  input: {
-    ...components.input.base,
-    marginVertical: spacing.sm,
-    fontFamily: typography.fonts.body,
-  },
-  emptyText: {
-    ...typography.styles.bodySmall,
-    fontFamily: typography.fonts.body,
-    textAlign: 'center',
-    color: colors.text.disabled,
-    fontStyle: 'italic',
-    paddingVertical: spacing.lg,
-  },
-  loading: {
-    ...typography.styles.body,
-    fontFamily: typography.fonts.body,
-    textAlign: 'center',
-    marginTop: spacing.md,
-    color: colors.text.secondary,
   },
   error: {
     color: colors.status.error,
@@ -364,14 +247,5 @@ const styles = StyleSheet.create({
     ...typography.styles.caption,
     fontFamily: typography.fonts.mono,
     color: colors.text.secondary,
-  },
-  debugInfo: {
-    ...typography.styles.caption,
-    fontFamily: typography.fonts.mono,
-    color: colors.secondary,
-    backgroundColor: `${colors.secondary}1A`,
-    padding: spacing.sm,
-    borderRadius: spacing.radius.sm,
-    marginBottom: spacing.md,
   },
 });
