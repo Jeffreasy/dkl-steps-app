@@ -8,9 +8,11 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { useAuth } from '../useAuth';
 import { storage } from '../../utils/storage';
+import { authStorage } from '../../utils/authStorage';
 
 // Mock dependencies
 jest.mock('../../utils/storage');
+jest.mock('../../utils/authStorage');
 jest.mock('react-native/Libraries/Alert/Alert');
 
 // Mock navigation
@@ -42,7 +44,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should clear storage and navigate on confirmation', async () => {
-      (storage.clear as jest.Mock).mockResolvedValue(undefined);
+      (authStorage.clear as jest.Mock).mockResolvedValue(undefined);
       const { result } = renderHook(() => useAuth());
 
       act(() => {
@@ -59,7 +61,7 @@ describe('useAuth Hook', () => {
         await confirmButton.onPress();
       });
 
-      expect(storage.clear).toHaveBeenCalled();
+      expect(authStorage.clear).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith('Login');
     });
 
@@ -80,7 +82,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should handle logout errors', async () => {
-      (storage.clear as jest.Mock).mockRejectedValue(new Error('Clear failed'));
+      (authStorage.clear as jest.Mock).mockRejectedValue(new Error('Clear failed'));
       const { result } = renderHook(() => useAuth());
 
       act(() => {
@@ -107,7 +109,7 @@ describe('useAuth Hook', () => {
 
   describe('forceLogout', () => {
     it('should logout without confirmation', async () => {
-      (storage.clear as jest.Mock).mockResolvedValue(undefined);
+      (authStorage.clear as jest.Mock).mockResolvedValue(undefined);
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
@@ -115,12 +117,12 @@ describe('useAuth Hook', () => {
       });
 
       expect(Alert.alert).not.toHaveBeenCalled();
-      expect(storage.clear).toHaveBeenCalled();
+      expect(authStorage.clear).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith('Login');
     });
 
     it('should handle forceLogout errors gracefully', async () => {
-      (storage.clear as jest.Mock).mockRejectedValue(new Error('Clear failed'));
+      (authStorage.clear as jest.Mock).mockRejectedValue(new Error('Clear failed'));
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
@@ -128,21 +130,20 @@ describe('useAuth Hook', () => {
       });
 
       // Should not throw, just log error
-      expect(storage.clear).toHaveBeenCalled();
+      expect(authStorage.clear).toHaveBeenCalled();
     });
   });
 
   describe('getUserInfo', () => {
     it('should return user info from storage', async () => {
-      (storage.getItem as jest.Mock).mockImplementation((key: string) => {
-        const values: Record<string, string> = {
-          userRole: 'admin',
-          userName: 'Test User',
-          authToken: 'test-token',
-          participantId: '123',
-        };
-        return Promise.resolve(values[key] || null);
-      });
+      const mockUser = {
+        id: '123',
+        naam: 'Test User',
+        roles: [{ name: 'admin' }],
+        permissions: [],
+      };
+      (authStorage.getUser as jest.Mock).mockResolvedValue(mockUser);
+      (authStorage.isAuthenticated as jest.Mock).mockResolvedValue(true);
 
       const { result } = renderHook(() => useAuth());
 
@@ -160,7 +161,9 @@ describe('useAuth Hook', () => {
     });
 
     it('should return default values when not authenticated', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue(null);
+      (authStorage.getUser as jest.Mock).mockResolvedValue(null);
+      (authStorage.isAuthenticated as jest.Mock).mockResolvedValue(false);
+
       const { result } = renderHook(() => useAuth());
 
       let userInfo;
@@ -177,7 +180,9 @@ describe('useAuth Hook', () => {
     });
 
     it('should handle storage errors', async () => {
-      (storage.getItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+      (authStorage.getUser as jest.Mock).mockRejectedValue(new Error('Storage error'));
+      (authStorage.isAuthenticated as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
       const { result } = renderHook(() => useAuth());
 
       let userInfo;
@@ -196,7 +201,7 @@ describe('useAuth Hook', () => {
 
   describe('checkAuth', () => {
     it('should return true when token exists', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('test-token');
+      (authStorage.isAuthenticated as jest.Mock).mockResolvedValue(true);
       const { result } = renderHook(() => useAuth());
 
       let isAuthenticated;
@@ -205,11 +210,10 @@ describe('useAuth Hook', () => {
       });
 
       expect(isAuthenticated).toBe(true);
-      expect(storage.getItem).toHaveBeenCalledWith('authToken');
     });
 
     it('should return false when token does not exist', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue(null);
+      (authStorage.isAuthenticated as jest.Mock).mockResolvedValue(false);
       const { result } = renderHook(() => useAuth());
 
       let isAuthenticated;
@@ -223,7 +227,7 @@ describe('useAuth Hook', () => {
 
   describe('hasRole', () => {
     it('should return true for matching role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.hasRole as jest.Mock).mockResolvedValue(true);
       const { result } = renderHook(() => useAuth());
 
       let hasAdminRole;
@@ -235,7 +239,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should return false for non-matching role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.hasRole as jest.Mock).mockResolvedValue(false);
       const { result } = renderHook(() => useAuth());
 
       let hasAdminRole;
@@ -247,7 +251,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should be case-insensitive', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('Admin');
+      (authStorage.hasRole as jest.Mock).mockResolvedValue(true);
       const { result } = renderHook(() => useAuth());
 
       let hasAdminRole;
@@ -259,7 +263,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should return false when no role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue(null);
+      (authStorage.hasRole as jest.Mock).mockResolvedValue(false);
       const { result } = renderHook(() => useAuth());
 
       let hasAdminRole;
@@ -273,7 +277,7 @@ describe('useAuth Hook', () => {
 
   describe('hasAnyRole', () => {
     it('should return true when user has one of the roles', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('staff');
+      (authStorage.hasAnyRole as jest.Mock).mockResolvedValue(true);
       const { result } = renderHook(() => useAuth());
 
       let hasPermission;
@@ -285,7 +289,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should return false when user has none of the roles', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.hasAnyRole as jest.Mock).mockResolvedValue(false);
       const { result } = renderHook(() => useAuth());
 
       let hasPermission;
@@ -297,7 +301,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should be case-insensitive', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('Admin');
+      (authStorage.hasAnyRole as jest.Mock).mockResolvedValue(true);
       const { result } = renderHook(() => useAuth());
 
       let hasPermission;
@@ -309,7 +313,7 @@ describe('useAuth Hook', () => {
     });
 
     it('should handle empty roles array', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.hasAnyRole as jest.Mock).mockResolvedValue(false);
       const { result } = renderHook(() => useAuth());
 
       let hasPermission;

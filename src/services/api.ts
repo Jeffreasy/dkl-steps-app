@@ -36,11 +36,11 @@ export async function apiFetch<T = any>(
     ...fetchOptions
   } = options;
 
-  const token = await storage.getItem('authToken');
-  
+  const token = await storage.getItem('token');
+
   // Debug logging (development only)
   logger.api(endpoint, 'Token:', token ? `${token.substring(0, 20)}...` : 'NONE');
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

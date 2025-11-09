@@ -71,12 +71,18 @@ describe('StepQueueManager', () => {
       await stepQueue.recordConflict(100, 1000, 1100);
 
       const conflicts = await stepQueue.getUnresolvedConflicts();
-      
+
       expect(conflicts).toHaveLength(1);
       expect(conflicts[0].localDelta).toBe(100);
       expect(conflicts[0].serverTotal).toBe(1000);
       expect(conflicts[0].expectedTotal).toBe(1100);
       expect(conflicts[0].resolved).toBe(false);
+    });
+
+    it('should return empty array when no conflicts exist', async () => {
+      const conflicts = await stepQueue.getUnresolvedConflicts();
+
+      expect(conflicts).toHaveLength(0);
     });
 
     it('should resolve conflicts', async () => {

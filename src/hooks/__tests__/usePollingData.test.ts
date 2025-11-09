@@ -11,8 +11,17 @@ import * as useNetworkStatusModule from '../useNetworkStatus';
 jest.mock('../useNetworkStatus');
 jest.mock('../../utils/logger');
 
+// Mock AppState specifically to avoid undefined errors
+jest.mock('react-native/Libraries/AppState/AppState', () => ({
+  currentState: 'active',
+  addEventListener: jest.fn((event: string, listener: (state: string) => void) => ({
+    remove: jest.fn(),
+  })),
+}));
+
 describe('usePollingData', () => {
   beforeEach(() => {
+    jest.resetModules();
     jest.clearAllMocks();
     jest.useFakeTimers();
   });
@@ -20,6 +29,7 @@ describe('usePollingData', () => {
   afterEach(() => {
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
+    jest.clearAllTimers();
   });
 
   describe('Basic Polling', () => {

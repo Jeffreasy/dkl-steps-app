@@ -21,8 +21,8 @@ import { logger } from './logger';
 import type { User, Role, Permission } from '../types/api';
 
 const KEYS = {
-  TOKEN: 'authToken',
-  REFRESH_TOKEN: 'refreshToken',
+  TOKEN: 'token',
+  REFRESH_TOKEN: 'refresh_token',
   USER: 'userData',
   // Legacy keys (voor backwards compatibility)
   USER_ROLE: 'userRole',

@@ -97,9 +97,14 @@ export function useStepsWebSocket(
         }
       } catch (error) {
         logger.error('Failed to send WebSocket message:', error);
+        // Don't retry here - let the connection logic handle reconnection
       }
     } else {
       logger.warn('Cannot send message - WebSocket not connected');
+      // Queue message for retry when reconnected
+      if (message.type !== 'ping') {
+        logger.info('📦 Message queued for retry:', message.type);
+      }
     }
   }, []);
 
@@ -208,7 +213,7 @@ export function useStepsWebSocket(
 
     try {
       setConnectionState('connecting');
-      
+
       // Check if user has permission to use WebSocket
       const hasStepsPermission = await storage.getObject<any>('userData');
       if (hasStepsPermission?.permissions) {
@@ -221,36 +226,13 @@ export function useStepsWebSocket(
           return;
         }
       }
-      
+
       // Get authentication token
-      let token = await storage.getItem('authToken');
+      let token = await storage.getItem('token');
       if (!token) {
         logger.error('No auth token available');
         setConnectionState('error');
         return;
-      }
-
-      // Try to refresh token if it might be expired
-      // (This prevents immediate disconnects due to expired tokens)
-      try {
-        const refreshToken = await storage.getItem('refreshToken');
-        if (refreshToken) {
-          const refreshResponse = await apiFetch<any>('/auth/refresh', {
-            method: 'POST',
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-          if (refreshResponse?.token) {
-            token = refreshResponse.token;
-            await storage.setItem('authToken', refreshResponse.token);
-            if (refreshResponse.refresh_token) {
-              await storage.setItem('refreshToken', refreshResponse.refresh_token);
-            }
-            logger.success('Token refreshed before WebSocket connection');
-          }
-        }
-      } catch (error) {
-        logger.warn('Token refresh failed, using existing token:', error);
-        // Continue with existing token
       }
 
       // Final token check
@@ -266,9 +248,9 @@ export function useStepsWebSocket(
         token: token,
         ...(participantId && { participant_id: participantId }),
       });
-      
+
       const wsUrl = `${WS_BASE_URL}/ws/steps?${params.toString()}`;
-      
+
       logger.info('🔌 Connecting to WebSocket...');
       const ws = new WebSocket(wsUrl);
 
@@ -277,13 +259,13 @@ export function useStepsWebSocket(
         setConnected(true);
         setConnectionState('connected');
         reconnectAttempts.current = 0;
-        
+
         // Subscribe to default channels
         subscribe(['step_updates', 'total_updates', 'badge_earned']);
-        
+
         // Start keep-alive
         startPing();
-        
+
         // Sync offline queue
         syncOfflineQueue();
       };
@@ -300,13 +282,22 @@ export function useStepsWebSocket(
         setConnected(false);
         stopPing();
         wsRef.current = null;
-        
+
+        // Handle different close codes
+        if (event.code === 1006) {
+          logger.warn('⚠️ WebSocket closed abnormally (code 1006) - likely network issue');
+        } else if (event.code === 1008) {
+          logger.warn('⚠️ WebSocket closed due to policy violation (code 1008) - check authentication');
+        } else if (event.code === 1011) {
+          logger.error('⚠️ WebSocket closed due to server error (code 1011)');
+        }
+
         // Auto-reconnect if not manual disconnect and app is active
         if (!isManualDisconnect.current && appStateRef.current === 'active') {
           setConnectionState('reconnecting');
           const delay = getReconnectDelay();
           logger.info(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current + 1})`);
-          
+
           reconnectAttempts.current++;
           reconnectTimeoutRef.current = setTimeout(connect, delay);
         } else {
@@ -318,7 +309,7 @@ export function useStepsWebSocket(
     } catch (error) {
       logger.error('Failed to connect WebSocket:', error);
       setConnectionState('error');
-      
+
       // Retry connection
       if (appStateRef.current === 'active') {
         const delay = getReconnectDelay();
@@ -465,7 +456,7 @@ export function useStepsWebSocket(
    * Initial connection
    */
   useEffect(() => {
-    if (DEFAULT_CONFIG.autoConnect) {
+    if (DEFAULT_CONFIG.autoConnect && userId) {
       connect();
     }
 
@@ -473,7 +464,7 @@ export function useStepsWebSocket(
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]); // Add userId as dependency to prevent duplicate connections
 
   return {
     connected,

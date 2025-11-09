@@ -322,7 +322,13 @@ export function useGeofencing({
       }
 
       setState(prev => ({ ...prev, isMonitoring: true }));
-      logger.info('Geofence monitoring started');
+
+      // Only log once when monitoring actually starts
+      const shouldLog = !state.isMonitoring;
+      if (shouldLog) {
+        logger.info('Geofence monitoring started');
+      }
+
       return true;
     } catch (error) {
       logger.error('Failed to start monitoring:', error);

@@ -24,6 +24,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { apiFetch } from '../services/api';
 import type { EventData } from '../types/geofencing';
 import { isEventCurrentlyActive } from '../types/geofencing';
@@ -207,9 +208,16 @@ export function useEventData(options: UseEventDataOptions = {}): UseEventDataRet
   // Get first active event (of null)
   const activeEvent = activeEvents.length > 0 ? activeEvents[0] : null;
   
-  logger.info(`Active events: ${activeEvents.length}/${events.length}`, {
-    activeEventName: activeEvent?.name ?? 'No active event',
-  });
+  // Only log when active event changes to avoid spam
+  const prevActiveEventName = useRef<string>('initial');
+  const currentActiveEventName = activeEvent?.name ?? 'No active event';
+
+  if (prevActiveEventName.current !== currentActiveEventName) {
+    logger.info(`Active events: ${activeEvents.length}/${events.length}`, {
+      activeEventName: currentActiveEventName,
+    });
+    prevActiveEventName.current = currentActiveEventName;
+  }
 
   return {
     events,

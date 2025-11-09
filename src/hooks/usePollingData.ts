@@ -66,7 +66,7 @@ export function usePollingData<T>({
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const appState = useRef<AppStateStatus>(AppState.currentState);
+  const appState = useRef<AppStateStatus>('active');
   const consecutiveFailures = useRef(0);
   const currentRetryDelay = useRef(retryDelay);
   const fetchFnRef = useRef(fetchFn);

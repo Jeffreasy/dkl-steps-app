@@ -12,7 +12,21 @@ global.Platform = {
 global.AppState = {
   currentState: 'active',
   addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  removeEventListener: jest.fn(),
 };
+
+// Mock AppState from react-native
+jest.mock('react-native/Libraries/AppState/AppState', () => ({
+  currentState: 'active',
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  removeEventListener: jest.fn(),
+}));
+
+// Mock AppState from react-native
+jest.mock('react-native/Libraries/AppState/AppState', () => ({
+  currentState: 'active',
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
 
 // Mock Expo modules that are not available in tests
 jest.mock('expo-constants', () => ({
@@ -60,6 +74,134 @@ jest.mock('expo-haptics', () => ({
 
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
+}));
+
+jest.mock('expo-task-manager', () => ({
+  TaskManager: {
+    defineTask: jest.fn(),
+    getRegisteredTasksAsync: jest.fn(() => Promise.resolve([])),
+    unregisterTaskAsync: jest.fn(),
+    unregisterAllTasksAsync: jest.fn(),
+  },
+}));
+
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  requestBackgroundPermissionsAsync: jest.fn(() => Promise.resolve({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  getForegroundPermissionsAsync: jest.fn(() => Promise.resolve({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  getBackgroundPermissionsAsync: jest.fn(() => Promise.resolve({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  getCurrentPositionAsync: jest.fn(() => Promise.resolve({
+    coords: {
+      latitude: 52.3676,
+      longitude: 4.9041,
+      altitude: 10,
+      accuracy: 5,
+      altitudeAccuracy: 1,
+      heading: 90,
+      speed: 0,
+    },
+    timestamp: Date.now(),
+  })),
+  watchPositionAsync: jest.fn(() => Promise.resolve({
+    remove: jest.fn(),
+  })),
+  getLastKnownPositionAsync: jest.fn(() => Promise.resolve({
+    coords: {
+      latitude: 52.3676,
+      longitude: 4.9041,
+      altitude: 10,
+      accuracy: 5,
+      altitudeAccuracy: 1,
+      heading: 90,
+      speed: 0,
+    },
+    timestamp: Date.now() - 10000,
+  })),
+  geocodeAsync: jest.fn(() => Promise.resolve([{
+    latitude: 52.3676,
+    longitude: 4.9041,
+    accuracy: 0.5,
+    altitude: 10,
+    name: 'Amsterdam',
+    region: 'North Holland',
+    city: 'Amsterdam',
+    postalCode: '1012 JS',
+    country: 'Netherlands',
+    isoCountryCode: 'NL',
+    street: 'Dam Square',
+    streetNumber: '1',
+    district: 'Centrum',
+    subregion: 'Amsterdam',
+    timezone: 'Europe/Amsterdam',
+  }])),
+  reverseGeocodeAsync: jest.fn(() => Promise.resolve([{
+    latitude: 52.3676,
+    longitude: 4.9041,
+    accuracy: 0.5,
+    altitude: 10,
+    name: 'Dam Square',
+    region: 'North Holland',
+    city: 'Amsterdam',
+    postalCode: '1012 JS',
+    country: 'Netherlands',
+    isoCountryCode: 'NL',
+    street: 'Dam Square',
+    streetNumber: '1',
+    district: 'Centrum',
+    subregion: 'Amsterdam',
+    timezone: 'Europe/Amsterdam',
+  }])),
+  Accuracy: {
+    Lowest: 1,
+    Low: 2,
+    Medium: 3,
+    High: 4,
+    Highest: 5,
+    BestForNavigation: 6,
+  },
+  LocationAccuracy: {
+    Lowest: 1,
+    Low: 2,
+    Medium: 3,
+    High: 4,
+    Highest: 5,
+    BestForNavigation: 6,
+  },
+  LocationActivityType: {
+    AutomotiveNavigation: 'automotiveNavigation',
+    Fitness: 'fitness',
+    OtherNavigation: 'otherNavigation',
+    Other: 'other',
+  },
+  LocationGeofencingEventType: {
+    Enter: 'enter',
+    Exit: 'exit',
+  },
+  LocationGeofencingRegionState: {
+    Inside: 'inside',
+    Outside: 'outside',
+    Unknown: 'unknown',
+  },
+  LocationSubscriptionBehavior: {
+    BackgroundLocationUpdates: 'backgroundLocationUpdates',
+    BackgroundLocationUpdatesAndActivity: 'backgroundLocationUpdatesAndActivity',
+  },
 }));
 
 // Mock AsyncStorage
@@ -156,6 +298,11 @@ global.console = {
   warn: jest.fn(),
   error: jest.fn(),
   log: jest.fn(),
+  info: jest.fn(),
+  group: jest.fn(),
+  groupCollapsed: jest.fn(),
+  groupEnd: jest.fn(),
+  table: jest.fn(),
 };
 
 // Mock fetch globally

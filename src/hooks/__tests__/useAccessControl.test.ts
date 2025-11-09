@@ -5,9 +5,9 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { useAccessControl, useRequireRole, useRequireSingleRole, useRequireAdmin } from '../useAccessControl';
-import { storage } from '../../utils/storage';
+import { authStorage } from '../../utils/authStorage';
 
-jest.mock('../../utils/storage');
+jest.mock('../../utils/authStorage');
 
 const mockGoBack = jest.fn();
 const mockReplace = jest.fn();
@@ -28,7 +28,9 @@ describe('useAccessControl Hook', () => {
 
   describe('basic functionality', () => {
     it('should grant access when user has allowed role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
       const { result } = renderHook(() =>
         useAccessControl(['admin', 'staff'])
@@ -43,7 +45,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should deny access when user role not in allowed list', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() =>
         useAccessControl(['admin', 'staff'])
@@ -58,9 +62,11 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should be case-insensitive', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('Admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'Admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('Admin');
 
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useAccessControl(['admin'])
       );
 
@@ -70,9 +76,11 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should deny access when no role found', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue(null);
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('user');
 
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useAccessControl(['admin'])
       );
 
@@ -84,7 +92,9 @@ describe('useAccessControl Hook', () => {
 
   describe('access control behavior', () => {
     it('should deny access with default options', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() => useAccessControl(['admin']));
 
@@ -94,7 +104,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should support custom options', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() =>
         useAccessControl({
@@ -110,7 +122,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should check multiple allowed roles', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() =>
         useAccessControl(['admin', 'staff', 'moderator'])
@@ -124,7 +138,9 @@ describe('useAccessControl Hook', () => {
 
   describe('navigation behavior', () => {
     it('should deny access and trigger alert', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() => useAccessControl(['admin']));
 
@@ -134,7 +150,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should respect navigateBackOnDeny option', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() =>
         useAccessControl({
@@ -150,7 +168,9 @@ describe('useAccessControl Hook', () => {
 
     it('should handle navigation when cannot go back', async () => {
       mockCanGoBack.mockReturnValue(false);
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() => useAccessControl(['admin']));
 
@@ -163,7 +183,9 @@ describe('useAccessControl Hook', () => {
   describe('callbacks', () => {
     it('should accept onAccessDenied callback', async () => {
       const mockOnDenied = jest.fn();
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() =>
         useAccessControl({
@@ -179,7 +201,9 @@ describe('useAccessControl Hook', () => {
 
     it('should not trigger callback when access is granted', async () => {
       const mockOnDenied = jest.fn();
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
       const { result } = renderHook(() =>
         useAccessControl({
@@ -198,9 +222,11 @@ describe('useAccessControl Hook', () => {
 
   describe('helper hooks', () => {
     it('useRequireRole should work with role array', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('staff');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'staff' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('staff');
 
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useRequireRole(['admin', 'staff'])
       );
 
@@ -210,9 +236,11 @@ describe('useAccessControl Hook', () => {
     });
 
     it('useRequireSingleRole should work with single role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useRequireSingleRole('admin')
       );
 
@@ -222,7 +250,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('useRequireAdmin should check for admin role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([{ resource: 'admin', action: 'access' }]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
       const { result } = renderHook(() => useRequireAdmin());
 
@@ -232,7 +262,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('useRequireAdmin should deny non-admin users', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('deelnemer');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'deelnemer' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('deelnemer');
 
       const { result } = renderHook(() => useRequireAdmin());
 
@@ -243,8 +275,10 @@ describe('useAccessControl Hook', () => {
   });
 
   describe('error handling', () => {
-    it('should deny access when storage fails', async () => {
-      (storage.getItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+    it('should deny access when authStorage fails', async () => {
+      (authStorage.getUserRoles as jest.Mock).mockRejectedValue(new Error('Storage error'));
+      (authStorage.getUserPermissions as jest.Mock).mockRejectedValue(new Error('Storage error'));
+      (authStorage.getPrimaryRole as jest.Mock).mockRejectedValue(new Error('Storage error'));
 
       const { result } = renderHook(() => useAccessControl(['admin']));
 
@@ -256,7 +290,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should handle empty allowed roles array', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
       const { result } = renderHook(() => useAccessControl([]));
 
@@ -268,7 +304,9 @@ describe('useAccessControl Hook', () => {
 
   describe('state management', () => {
     it('should start with isChecking true', () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
       const { result } = renderHook(() => useAccessControl(['admin']));
 
@@ -276,7 +314,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should set isChecking to false after check', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('admin');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'admin' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('admin');
 
       const { result } = renderHook(() => useAccessControl(['admin']));
 
@@ -286,7 +326,9 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should update userRole state', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('staff');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'staff' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('staff');
 
       const { result } = renderHook(() => useAccessControl(['staff']));
 
@@ -298,9 +340,11 @@ describe('useAccessControl Hook', () => {
 
   describe('multiple roles', () => {
     it('should grant access for first matching role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('staff');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'staff' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('staff');
 
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useAccessControl(['admin', 'staff', 'moderator'])
       );
 
@@ -310,9 +354,11 @@ describe('useAccessControl Hook', () => {
     });
 
     it('should grant access for last matching role', async () => {
-      (storage.getItem as jest.Mock).mockResolvedValue('moderator');
+      (authStorage.getUserRoles as jest.Mock).mockResolvedValue([{ name: 'moderator' }]);
+      (authStorage.getUserPermissions as jest.Mock).mockResolvedValue([]);
+      (authStorage.getPrimaryRole as jest.Mock).mockResolvedValue('moderator');
 
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useAccessControl(['admin', 'staff', 'moderator'])
       );
 

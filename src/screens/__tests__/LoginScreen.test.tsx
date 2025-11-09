@@ -99,7 +99,15 @@ describe('LoginScreen', () => {
     it('calls API with normalized email', async () => {
       (apiFetch as jest.Mock).mockResolvedValue({
         token: 'token',
-        user: { id: '1', rol: 'user', naam: 'User' },
+        refresh_token: 'refresh',
+        user: {
+          id: '1',
+          naam: 'User',
+          email: 'test@example.com',
+          is_actief: true,
+          roles: [{ id: '1', name: 'user', description: 'User', assigned_at: '2023-01-01', is_active: true }],
+          permissions: [{ resource: 'contact', action: 'read' }]
+        },
       });
 
       const { getByPlaceholderText, getByText } = render(<LoginScreen />);
@@ -119,7 +127,14 @@ describe('LoginScreen', () => {
       (apiFetch as jest.Mock).mockResolvedValue({
         token: 'fake-token',
         refresh_token: 'fake-refresh',
-        user: { id: '123', rol: 'user', naam: 'Test User' },
+        user: {
+          id: '123',
+          naam: 'Test User',
+          email: 'test@example.com',
+          is_actief: true,
+          roles: [{ id: '1', name: 'user', description: 'User', assigned_at: '2023-01-01', is_active: true }],
+          permissions: [{ resource: 'contact', action: 'read' }]
+        },
       });
 
       const { getByPlaceholderText, getByText } = render(<LoginScreen />);
@@ -128,17 +143,23 @@ describe('LoginScreen', () => {
       fireEvent.press(getByText('Inloggen'));
 
       await waitFor(() => {
-        expect(storage.multiSet).toHaveBeenCalledWith(expect.arrayContaining([
-          ['authToken', 'fake-token'],
-          ['refreshToken', 'fake-refresh'],
-        ]));
+        expect(storage.setItem).toHaveBeenCalledWith('token', 'fake-token');
+        expect(storage.setItem).toHaveBeenCalledWith('refresh_token', 'fake-refresh');
       });
     });
 
     it('shows success modal on login', async () => {
       (apiFetch as jest.Mock).mockResolvedValue({
         token: 'token',
-        user: { id: '1', rol: 'user', naam: 'Test User' },
+        refresh_token: 'refresh',
+        user: {
+          id: '1',
+          naam: 'Test User',
+          email: 'test@example.com',
+          is_actief: true,
+          roles: [{ id: '1', name: 'user', description: 'User', assigned_at: '2023-01-01', is_active: true }],
+          permissions: [{ resource: 'contact', action: 'read' }]
+        },
       });
 
       const { getByPlaceholderText, getByText } = render(<LoginScreen />);
@@ -154,7 +175,15 @@ describe('LoginScreen', () => {
     it('calls haptic feedback on success', async () => {
       (apiFetch as jest.Mock).mockResolvedValue({
         token: 'token',
-        user: { id: '1', rol: 'user', naam: 'User' },
+        refresh_token: 'refresh',
+        user: {
+          id: '1',
+          naam: 'User',
+          email: 'test@example.com',
+          is_actief: true,
+          roles: [{ id: '1', name: 'user', description: 'User', assigned_at: '2023-01-01', is_active: true }],
+          permissions: [{ resource: 'contact', action: 'read' }]
+        },
       });
 
       const { getByPlaceholderText, getByText } = render(<LoginScreen />);
